@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+    default-src 'self';
+    script-src 'self';
+    style-src
+      'self'
+      'unsafe-inline'
+      https://cdnjs.cloudflare.com
+      https://fonts.googleapis.com;
+    font-src
+      'self'
+      https://fonts.gstatic.com;
+    img-src
+      'self'
+      data:;
+    connect-src 'self';
+  "
+    />
+
+    <title>Umbrella Agency - Video Processor</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/bulma/1.0.4/css/bulma.min.css"
+    />
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./renderer/ui.js"></script>
+
+    <!-- font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="content">
+        <div class="logo">
+          <img src="./assets/Logo.png" alt="Umbrella Agency" />
+        </div>
+
+        <div class="header">
+          <div class="title">
+            <img src="./assets/dice.png" alt="" />
+            <h1 class="is-size-3 has-text-weight-semibold">
+              Video Randomizer & Cutter
+            </h1>
+          </div>
+        </div>
+
+        <div class="folder">
+          <h1 class="folder__title">🗂 Ordner</h1>
+
+          <div class="folder__list">
+            <div class="folder__list--item folder__list--item-1">
+              <span class="inputLabel">Input Video:</span>
+
+              <div id="inputWrapper" class="inputWrapper">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  version="1.1"
+                  xmlns:xlink="http://www.w3.org/1999/xlink"
+                  width="512"
+                  height="512"
+                  x="0"
+                  y="0"
+                  viewBox="0 0 520 520"
+                  style="enable-background: new 0 0 512 512"
+                  xml:space="preserve"
+                  class="tick"
+                >
+                  <g>
+                    <path
+                      d="M239.987 460.841a10 10 0 0 1-7.343-3.213L34.657 243.463A10 10 0 0 1 42 226.675h95.3a10.006 10.006 0 0 1 7.548 3.439l66.168 76.124c7.151-15.286 20.994-40.738 45.286-71.752 35.912-45.85 102.71-113.281 216.994-174.153a10 10 0 0 1 10.85 16.712c-.436.341-44.5 35.041-95.212 98.6-46.672 58.49-108.714 154.13-139.243 277.6a10 10 0 0 1-9.707 7.6z"
+                      data-name="6-Check"
+                      fill="#068fff"
+                      opacity="1"
+                      data-original="#000000"
+                      class=""
+                    ></path>
+                  </g>
+                </svg>
+
+                <div id="inputPath" class="inputBox truncate is-valid">
+                  Bitte Eingabevideo auswählen (.mp4)
+                </div>
+              </div>
+
+              <div>
+                <button id="browseInput" class="button is-primary">
+                  Durchsuchen
+                </button>
+              </div>
+            </div>
+            <div class="folder__list--item folder__list--item-2">
+              <span class="inputLabel">Output Path:</span>
+
+              <div id="outputWrapper" class="inputWrapper">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  version="1.1"
+                  xmlns:xlink="http://www.w3.org/1999/xlink"
+                  width="512"
+                  height="512"
+                  x="0"
+                  y="0"
+                  viewBox="0 0 520 520"
+                  style="enable-background: new 0 0 512 512"
+                  xml:space="preserve"
+                  class="tick"
+                >
+                  <g>
+                    <path
+                      d="M239.987 460.841a10 10 0 0 1-7.343-3.213L34.657 243.463A10 10 0 0 1 42 226.675h95.3a10.006 10.006 0 0 1 7.548 3.439l66.168 76.124c7.151-15.286 20.994-40.738 45.286-71.752 35.912-45.85 102.71-113.281 216.994-174.153a10 10 0 0 1 10.85 16.712c-.436.341-44.5 35.041-95.212 98.6-46.672 58.49-108.714 154.13-139.243 277.6a10 10 0 0 1-9.707 7.6z"
+                      data-name="6-Check"
+                      fill="#068fff"
+                      opacity="1"
+                      data-original="#000000"
+                      class=""
+                    ></path>
+                  </g>
+                </svg>
+
+                <div id="outputPath" class="inputBox truncate">
+                  Bitte Ausgabeordner auswählen
+                </div>
+              </div>
+
+              <div>
+                <button id="browseOutput" class="button is-primary">
+                  Durchsuchen
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="configuration">
+          <h1 class="configuration__title">⚙️ Basis-Einstellungen</h1>
+
+          <div class="configuration__row">
+            <div class="configuration__row--item">
+              <label class="label">Varianten pro Video</label>
+
+              <div class="control">
+                <input
+                  id="variationCount"
+                  class="input"
+                  type="number"
+                  step="1"
+                  placeholder="1 – 100"
+                />
+              </div>
+
+              <p id="variationError" class="help is-danger is-hidden">
+                Der Wert muss zwischen 1 und 100 liegen.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="progressContainer is-hidden">
+          <div class="progressContainer__title">⏳ Fortschritt</div>
+          <div class="progressContainer__progress">
+            <progress
+              class="progress is-primary"
+              value="0"
+              max="100"
+            ></progress>
+            <p class="filesDone">1/100 Done</p>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="startBtn" class="button is-primary">
+            Verarbeitung starten
+          </button>
+
+          <button id="stopBtn" class="button is-danger">Stoppen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- confirmation modal -->
+    <div id="cancelModal" class="modal">
+      <div class="modal-background"></div>
+
+      <div class="modal-card">
+        <header class="modal-card-head">
+          <p class="modal-card-title">Cancel processing?</p>
+          <button class="delete" aria-label="close"></button>
+        </header>
+
+        <section class="modal-card-body">
+          <p>
+            The video processing is still running.
+            <br />
+            Are you sure you want to cancel?
+          </p>
+        </section>
+
+        <footer class="modal-card-foot">
+          <button id="confirmCancel" class="button is-danger">
+            Yes, cancel
+          </button>
+          <button id="cancelCancel" class="button">Continue processing</button>
+        </footer>
+      </div>
+    </div>
+  </body>
+</html>

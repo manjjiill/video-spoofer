@@ -1,0 +1,49 @@
+{
+  "name": "umbrella-agency",
+  "version": "1.0.0",
+  "main": "src/main.js",
+  "type": "module",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electronmon .",
+    "build": "electron-builder"
+  },
+  "build": {
+    "appId": "com.spoofer.tool",
+    "productName": "Video Spoofer",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/@ffmpeg-installer/ffmpeg/**/*"
+    ],
+    "mac": {
+      "target": "dmg",
+      "icon": "src/assets/Icon.icns",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "extraResources": [
+      {
+        "from": "src/luts",
+        "to": "luts"
+      }
+    ]
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "electron": "38.6.0",
+    "electron-builder": "25.1.8",
+    "electronmon": "^2.0.4"
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "fluent-ffmpeg": "^2.1.3"
+  }
+}
