@@ -96,7 +96,9 @@ ipcMain.handle("open-folder", async (_e, folderPath) => {
 });
 
 app.whenReady().then(() => {
-  app.dock.setIcon(path.join(__dirname, "assets/Icon.png"));
+  if (process.platform === "darwin" && app.dock) {
+    app.dock.setIcon(path.join(__dirname, "assets/Icon.png"));
+  }
 
   createWindow();
 });
