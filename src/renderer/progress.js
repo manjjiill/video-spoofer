@@ -22,8 +22,10 @@ export function initProgress() {
   });
 
   window.api.onPresetProgress(({ current, total, percent }) => {
+    const safePercent = Math.round(percent || 0);
+
     if (fileProgressText) {
-      fileProgressText.textContent = `${percent}% (Generating Varianten ${current})`;
+      fileProgressText.textContent = `${safePercent}% (Generating Varianten ${current})`;
     }
     if (loader) loader.style.display = "inline-block";
   });

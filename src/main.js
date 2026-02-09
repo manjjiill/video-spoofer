@@ -96,9 +96,10 @@ ipcMain.handle("start-processing", async (_, payload) => {
           if (!p.timemark) return;
 
           const seconds = timemarkToSeconds(p.timemark);
+
           const percent = Math.min(
             100,
-            Math.round((seconds / totalDuration) * 100),
+            Math.max(0, Math.round((seconds / totalDuration) * 100)),
           );
 
           mainWindow.webContents.send("preset-progress", {
