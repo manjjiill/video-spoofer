@@ -6,11 +6,8 @@ export const getLutPath = (fileName) => {
     ? path.join(process.resourcesPath, "luts", fileName)
     : path.join(app.getAppPath(), "src", "luts", fileName);
 
-  if (process.platform === "win32") {
-    return fullPath.replace(/\\/g, "/").replace(/:/g, "\\:");
-  }
-
-  return fullPath;
+  // Normalize all paths to use forward slashes (FFmpeg prefers this on all OS)
+  return path.resolve(fullPath).split(path.sep).join("/");
 };
 
 const LUT_FILES = [
@@ -45,8 +42,12 @@ export const PRESETS_SET_3 = Array.from({ length: 2 }).map((_, i) => ({
   id: i + 1,
 
   build: () => {
-    const lut = pick(LUT_FILES);
-    const lutPath = getLutPath(lut);
+    const randomLutName = pick(LUT_FILES);
+    const rawLutPath = getLutPath(randomLutName);
+    const ffmpegSafePath =
+      process.platform === "win32"
+        ? rawLutPath.replace(/:/g, "\\:")
+        : rawLutPath;
 
     const rawBg = pick(BG_COLORS);
     const bg = rawBg.replace("#", "0x");
@@ -108,7 +109,7 @@ export const PRESETS_SET_3 = Array.from({ length: 2 }).map((_, i) => ({
         {
           filter: "lut3d",
           inputs: "scaled",
-          options: { file: lutPath },
+          options: { file: ffmpegSafePath },
           outputs: "colored",
         },
         // 5. NEW: Convert to RGBA so rotation 'fillcolor=none' actually works
