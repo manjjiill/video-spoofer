@@ -7,9 +7,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const getLutPath = (fileName) => {
-  return app.isPackaged
+  const fullPath = app.isPackaged
     ? path.join(process.resourcesPath, "luts", fileName)
     : path.join(app.getAppPath(), "src", "luts", fileName);
+
+  if (process.platform === "win32") {
+    return fullPath.replace(/\\/g, "/").replace(/:/g, "\\:");
+  }
+
+  return fullPath;
 };
 
 export const PRESETS = [
@@ -307,7 +313,6 @@ export const PRESETS = [
   // },
   // luts end
 
- 
   {
     id: 7,
     build: () => ({

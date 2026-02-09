@@ -5,9 +5,15 @@ import { PRESETS_SET_2 } from "./2.js";
 import { PRESETS_SET_3 } from "./3.js";
 
 export const getLutPath = (fileName) => {
-  return app.isPackaged
+  const fullPath = app.isPackaged
     ? path.join(process.resourcesPath, "luts", fileName)
     : path.join(app.getAppPath(), "src", "luts", fileName);
+
+  if (process.platform === "win32") {
+    return fullPath.replace(/\\/g, "/").replace(/:/g, "\\:");
+  }
+
+  return fullPath;
 };
 
 export const PRESETS = [

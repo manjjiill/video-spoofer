@@ -1,13 +1,17 @@
 import path from "path";
 import { app } from "electron";
 
-function getLutPath(fileName) {
-  const p = app.isPackaged
+export const getLutPath = (fileName) => {
+  const fullPath = app.isPackaged
     ? path.join(process.resourcesPath, "luts", fileName)
     : path.join(app.getAppPath(), "src", "luts", fileName);
 
-  return p.replace(/\\/g, "/");
-}
+  if (process.platform === "win32") {
+    return fullPath.replace(/\\/g, "/").replace(/:/g, "\\:");
+  }
+
+  return fullPath;
+};
 
 const LUT_FILES = [
   "hong-kong.cube",
