@@ -17,7 +17,8 @@
     ],
     "asar": true,
     "asarUnpack": [
-      "**/node_modules/@ffmpeg-installer/ffmpeg/**/*"
+      "**/node_modules/@ffmpeg-installer/ffmpeg/**/*",
+      "**/node_modules/@ffprobe-installer/ffprobe/*"
     ],
     "mac": {
       "target": "dmg",
@@ -44,6 +45,7 @@
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
     "fluent-ffmpeg": "^2.1.3"
   }
 }
