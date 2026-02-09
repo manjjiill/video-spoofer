@@ -1,4 +1,5 @@
 import path from "path";
+import ffmpeg from "fluent-ffmpeg";
 import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
 import { buildFFmpegJob } from "./ffmpeg/buildArgs.js";
 import { runFFmpeg, stopFFmpeg } from "./ffmpeg/index.js";
@@ -45,6 +46,12 @@ ipcMain.handle("start-processing", async (_, payload) => {
   const { input, outputDir, variations } = payload;
   isCancelled = false;
 
+  // 1. Get total duration of the input video once
+  const metadata = await new Promise((resolve) => {
+    ffmpeg.ffprobe(input, (err, data) => resolve(data));
+  });
+  const totalDuration = metadata?.format?.duration || 0;
+
   const { PRESETS } = await import(
     `./ffmpeg/presets/index.js?update=${Date.now()}`
   );
@@ -68,11 +75,31 @@ ipcMain.handle("start-processing", async (_, payload) => {
     try {
       await runFFmpeg({
         ...args,
+        // onProgress: (p) => {
+        //   mainWindow.webContents.send("preset-progress", {
+        //     current: index,
+        //     total: total,
+        //     percent: Math.max(0, Math.min(100, Math.round(p.percent || 0))),
+        //     status: `Generating Varianten ${index}`,
+        //   });
+        // },
+
         onProgress: (p) => {
+          let calculatedPercent = 0;
+
+          if (p.percent && p.percent > 0) {
+            calculatedPercent = Math.round(p.percent);
+          } else if (totalDuration > 0 && p.timemark) {
+            const timeParts = p.timemark.split(":");
+            const seconds =
+              +timeParts[0] * 60 * 60 + +timeParts[1] * 60 + +timeParts[2];
+            calculatedPercent = Math.round((seconds / totalDuration) * 100);
+          }
+
           mainWindow.webContents.send("preset-progress", {
             current: index,
             total: total,
-            percent: Math.max(0, Math.min(100, Math.round(p.percent || 0))),
+            percent: Math.min(100, calculatedPercent),
             status: `Generating Varianten ${index}`,
           });
         },

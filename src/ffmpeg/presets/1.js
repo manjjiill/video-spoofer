@@ -65,7 +65,7 @@ export const PRESETS_SET_1 = Array.from({ length: 10 }).map((_, i) => {
           "hflip",
           `scale=iw*${randomScale}:ih*${randomScale}`,
           `rotate=${randomAngle}*PI/180:fillcolor=black`,
-          `lut3d='${rawLutPath}'`,
+          `lut3d=${rawLutPath}`,
           "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black",
         ].join(","),
       };
