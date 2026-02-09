@@ -17,7 +17,7 @@ export const getLutPath = (fileName) => {
   return normalizedPath;
 };
 
-export const PRESETS_SET_4 = Array.from({ length: 2 }).map((_, i) => {
+export const PRESETS_SET_4 = Array.from({ length: 15 }).map((_, i) => {
   const lutFileName = `${i + 1}.cube`;
 
   return {

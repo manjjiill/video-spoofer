@@ -23,6 +23,12 @@ export function initActions() {
     if (!canStart()) return;
 
     appState.isProcessing = true;
+
+    const progressLabel = document.querySelector(".filesDone");
+    if (progressLabel) {
+      progressLabel.textContent = `0/${appState.variationCount} Done`;
+    }
+
     setLoading(true);
     updateActionButtons();
     updateProgressVisibility();

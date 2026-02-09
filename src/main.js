@@ -52,6 +52,8 @@ ipcMain.handle("start-processing", async (_, payload) => {
   const selectedPresets = pickRandomPresets(PRESETS, variations);
 
   let index = 1;
+  const total = selectedPresets.length;
+
   for (const preset of selectedPresets) {
     if (isCancelled) {
       return { cancelled: true };
@@ -63,7 +65,21 @@ ipcMain.handle("start-processing", async (_, payload) => {
       preset: preset,
     });
 
-    await runFFmpeg(args);
+    try {
+      await runFFmpeg({
+        ...args,
+        onProgress: (p) => {
+          mainWindow.webContents.send("preset-progress", {
+            current: index,
+            total: total,
+            percent: Math.max(0, Math.min(100, Math.round(p.percent || 0))),
+            status: `Generating Varianten ${index}`,
+          });
+        },
+      });
+    } catch (err) {
+      console.error(`Error in preset ${index}:`, err);
+    }
 
     mainWindow.webContents.send("processing-progress", {
       current: index,

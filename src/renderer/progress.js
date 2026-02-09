@@ -3,6 +3,8 @@ import { appState } from "./state.js";
 let container;
 let progress;
 let label;
+let fileProgressText;
+let loader;
 
 export function initProgress() {
   container = document.querySelector(".progressContainer");
@@ -11,9 +13,19 @@ export function initProgress() {
   progress = container.querySelector("progress");
   label = container.querySelector(".filesDone");
 
+  fileProgressText = document.querySelector(".fileProgressText");
+  loader = document.querySelector(".loader");
+
   window.api.onProgress(({ current, total, percent }) => {
     progress.value = percent;
     label.textContent = `${current}/${total} Done`;
+  });
+
+  window.api.onPresetProgress(({ current, total, percent }) => {
+    if (fileProgressText) {
+      fileProgressText.textContent = `${percent}% (Generating Varianten ${current})`;
+    }
+    if (loader) loader.style.display = "inline-block";
   });
 
   updateProgressVisibility();
@@ -26,7 +38,10 @@ export function updateProgressVisibility() {
     container.classList.remove("is-hidden");
   } else {
     container.classList.add("is-hidden");
-    progress.value = 0;
-    label.textContent = "0/0 Done";
+
+    if (progress) progress.value = 0;
+    if (label) label.textContent = "0/0 Done";
+    if (loader) loader.style.display = "none";
+    if (fileProgressText) fileProgressText.textContent = "";
   }
 }

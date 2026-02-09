@@ -30,7 +30,7 @@ const LUT_FILES = [
   "arrival.cube",
 ];
 
-export const PRESETS_SET_2 = Array.from({ length: 2 }).map((_, i) => {
+export const PRESETS_SET_2 = Array.from({ length: 10 }).map((_, i) => {
   return {
     id: i + 1,
     build: () => {

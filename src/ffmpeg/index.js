@@ -18,6 +18,7 @@ export function runFFmpeg({
   filters,
   complexFilters,
   mode,
+  onProgress,
 }) {
   return new Promise((resolve, reject) => {
     fs.mkdirSync(path.dirname(output), { recursive: true });
@@ -57,8 +58,11 @@ export function runFFmpeg({
     }
 
     currentCommand = cmd
+      .on("progress", (progress) => {
+        if (onProgress) onProgress(progress);
+      })
       .on("start", (cmd) => console.log("FFmpeg:", cmd))
-      // .on("stderr", (line) => console.log(line))
+      .on("stderr", (line) => console.log(line))
       .on("end", resolve)
       .on("error", reject)
       .run();

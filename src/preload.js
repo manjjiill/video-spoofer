@@ -12,4 +12,6 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.on("processing-progress", (_, data) => callback(data)),
   getPresetCount: () => ipcRenderer.invoke("get-preset-count"),
   openFolder: (path) => ipcRenderer.invoke("open-folder", path),
+  onPresetProgress: (cb) =>
+    ipcRenderer.on("preset-progress", (_, data) => cb(data)),
 });
