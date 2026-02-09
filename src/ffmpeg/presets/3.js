@@ -28,6 +28,11 @@ const LUT_FILES = [
   "cool-soft.cube",
   "vintage-gold.cube",
   "arrival.cube",
+  "green-orange.cube",
+  "sony-s-log.cube",
+  "rec709.cube",
+  "relatives.cube",
+  "correction.cube",
 ];
 
 const BG_COLORS = [
@@ -42,12 +47,16 @@ const BG_COLORS = [
   "#9BC264",
   "#222222",
   "#F63049",
+  "#FF5B5B",
+  "#ACBFA4",
+  "#4D2B8C",
+  "#3291B6",
 ];
 
 const rand = (min, max) => Math.random() * (max - min) + min;
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-export const PRESETS_SET_3 = Array.from({ length: 2 }).map((_, i) => ({
+export const PRESETS_SET_3 = Array.from({ length: 20 }).map((_, i) => ({
   id: i + 1,
 
   build: () => {

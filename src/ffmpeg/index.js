@@ -22,39 +22,30 @@ export function runFFmpeg({
   return new Promise((resolve, reject) => {
     fs.mkdirSync(path.dirname(output), { recursive: true });
 
-    // const useHW =
-    //   process.platform === "darwin" &&
-    //   shouldUseHardwareEncoder({ complexFilters });
+    const useHW =
+      process.platform === "darwin" &&
+      shouldUseHardwareEncoder({ complexFilters });
+    const codec = useHW ? "h264_videotoolbox" : "libx264";
 
-    // const codec = useHW ? "h264_videotoolbox" : "libx264";
+    let outputOptions = [
+      "-pix_fmt",
+      "yuv420p",
+      "-movflags",
+      "+faststart",
+      ...(codec === "libx264"
+        ? ["-preset", "veryfast", "-threads", "2"]
+        : ["-allow_sw", "1"]),
+      ...args,
+    ];
 
-    // let outputOptions = [
-    //   "-pix_fmt",
-    //   "yuv420p",
-    //   "-movflags",
-    //   "+faststart",
-    //   ...(codec === "libx264"
-    //     ? ["-preset", "veryfast", "-threads", "2"]
-    //     : ["-allow_sw", "1"]),
-    //   ...args,
-    // ];
-
-    // if (codec === "h264_videotoolbox") {
-    //   outputOptions.push("-allow_sw", "1");
-    // }
+    if (codec === "h264_videotoolbox") {
+      outputOptions.push("-allow_sw", "1");
+    }
 
     let cmd = ffmpeg()
       .input(input)
-      .videoCodec("libx264")
-      .outputOptions([
-        "-preset",
-        "veryfast",
-        "-pix_fmt",
-        "yuv420p",
-        "-movflags",
-        "+faststart",
-        ...args,
-      ])
+      .videoCodec(codec)
+      .outputOptions(outputOptions)
       .output(output);
 
     if (mode === "simple" && filters) {
@@ -67,7 +58,7 @@ export function runFFmpeg({
 
     currentCommand = cmd
       .on("start", (cmd) => console.log("FFmpeg:", cmd))
-      .on("stderr", (line) => console.log(line))
+      // .on("stderr", (line) => console.log(line))
       .on("end", resolve)
       .on("error", reject)
       .run();

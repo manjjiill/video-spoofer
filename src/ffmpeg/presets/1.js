@@ -6,11 +6,17 @@ export const getLutPath = (fileName) => {
     ? path.join(process.resourcesPath, "luts", fileName)
     : path.join(app.getAppPath(), "src", "luts", fileName);
 
+  // 1. Normalize to forward slashes
+  let normalizedPath = path.resolve(fullPath).split(path.sep).join("/");
+
   if (process.platform === "win32") {
-    return fullPath.replace(/\\/g, "/").replace(/:/g, "\\:");
+    // 2. Escape the colon: D:/... -> D\:/...
+    normalizedPath = normalizedPath.replace(/:/g, "\\:");
+    // 3. Wrap in single quotes: 'D\:/path/to.cube'
+    return `'${normalizedPath}'`;
   }
 
-  return fullPath;
+  return normalizedPath;
 };
 
 const LUT_FILES = [
@@ -28,7 +34,7 @@ export const PRESETS_SET_1 = Array.from({ length: 10 }).map((_, i) => {
     build: () => {
       const randomLutName =
         LUT_FILES[Math.floor(Math.random() * LUT_FILES.length)];
-      const lutPath = getLutPath(randomLutName);
+      const rawLutPath = getLutPath(randomLutName);
 
       const randomAngle = (Math.random() * 30 - 15).toFixed(2);
       const randomScale = (Math.random() * 0.2 + 0.8).toFixed(2);
@@ -59,7 +65,7 @@ export const PRESETS_SET_1 = Array.from({ length: 10 }).map((_, i) => {
           "hflip",
           `scale=iw*${randomScale}:ih*${randomScale}`,
           `rotate=${randomAngle}*PI/180:fillcolor=black`,
-          `lut3d='${lutPath}'`,
+          `lut3d='${rawLutPath}'`,
           "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black",
         ].join(","),
       };

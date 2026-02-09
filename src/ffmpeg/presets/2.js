@@ -6,11 +6,17 @@ export const getLutPath = (fileName) => {
     ? path.join(process.resourcesPath, "luts", fileName)
     : path.join(app.getAppPath(), "src", "luts", fileName);
 
+  // 1. Normalize to forward slashes
+  let normalizedPath = path.resolve(fullPath).split(path.sep).join("/");
+
   if (process.platform === "win32") {
-    return fullPath.replace(/\\/g, "/").replace(/:/g, "\\:");
+    // 2. Escape the colon: D:/... -> D\:/...
+    normalizedPath = normalizedPath.replace(/:/g, "\\:");
+    // 3. Wrap in single quotes: 'D\:/path/to.cube'
+    return `'${normalizedPath}'`;
   }
 
-  return fullPath;
+  return normalizedPath;
 };
 
 const LUT_FILES = [
@@ -29,7 +35,7 @@ export const PRESETS_SET_2 = Array.from({ length: 2 }).map((_, i) => {
     id: i + 1,
     build: () => {
       const randomLut = LUT_FILES[Math.floor(Math.random() * LUT_FILES.length)];
-      const lutPath = getLutPath(randomLut);
+      const rawLutPath = getLutPath(randomLut);
 
       // Random Crop between 0.05 (5%) and 0.25 (25%)
       const cropPercent = (Math.random() * (0.25 - 0.05) + 0.05).toFixed(2);
@@ -100,7 +106,7 @@ export const PRESETS_SET_2 = Array.from({ length: 2 }).map((_, i) => {
           },
           {
             filter: "lut3d",
-            options: { file: lutPath },
+            options: `file=${rawLutPath}`,
             inputs: "fg_scaled",
             outputs: "fg_colored",
           },
