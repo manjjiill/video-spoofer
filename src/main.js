@@ -1,26 +1,27 @@
 import path from "path";
+import ffmpeg from "fluent-ffmpeg";
 import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
 import { buildFFmpegJob } from "./ffmpeg/buildArgs.js";
 import { runFFmpeg, stopFFmpeg } from "./ffmpeg/index.js";
 import { pickRandomPresets } from "./ffmpeg/selector.js";
 import { fileURLToPath } from "url";
 
-import ffmpeg from "fluent-ffmpeg";
-import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
-import ffprobeInstaller from "@ffprobe-installer/ffprobe";
+function getDuration(input) {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(input, (err, data) => {
+      if (err) return reject(err);
+      resolve(data.format.duration); // seconds
+    });
+  });
+}
 
-// 1. Properly set paths for binaries (handles ASAR unpacking automatically)
-const ffmpegPath = ffmpegInstaller.path.replace(
-  "app.asar",
-  "app.asar.unpacked",
-);
-const ffprobePath = ffprobeInstaller.path.replace(
-  "app.asar",
-  "app.asar.unpacked",
-);
-
-ffmpeg.setFfmpegPath(ffmpegPath);
-ffmpeg.setFfprobePath(ffprobePath);
+function timemarkToSeconds(t) {
+  const parts = t.split(":").map(Number);
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+  return 0;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,13 +64,9 @@ ipcMain.handle("start-processing", async (_, payload) => {
   isCancelled = false;
 
   // 1. Get total duration of the input video once
-  const getDuration = (p) =>
-    new Promise((res) => {
-      ffmpeg.ffprobe(p, (err, meta) => res(meta?.format?.duration || 0));
-    });
-
   const totalDuration = await getDuration(input);
-  console.log(`Input Duration: ${totalDuration}s`);
+
+  console.log("Input Duration:", totalDuration);
 
   const { PRESETS } = await import(
     `./ffmpeg/presets/index.js?update=${Date.now()}`
@@ -94,36 +91,20 @@ ipcMain.handle("start-processing", async (_, payload) => {
     try {
       await runFFmpeg({
         ...args,
-        // onProgress: (p) => {
-        //   mainWindow.webContents.send("preset-progress", {
-        //     current: index,
-        //     total: total,
-        //     percent: Math.max(0, Math.min(100, Math.round(p.percent || 0))),
-        //     status: `Generating Varianten ${index}`,
-        //   });
-        // },
 
         onProgress: (p) => {
-          let calculatedPercent = 0;
+          if (!p.timemark) return;
 
-          if (p.percent && p.percent > 0) {
-            calculatedPercent = Math.round(p.percent);
-          } else if (totalDuration > 0 && p.timemark) {
-            // Manual calculation for Windows
-            const timeParts = p.timemark.split(":");
-            const h = parseFloat(timeParts[0]) || 0;
-            const m = parseFloat(timeParts[1]) || 0;
-            const s = parseFloat(timeParts[2]) || 0;
-            const totalSeconds = h * 3600 + m * 60 + s;
-            calculatedPercent = Math.round(
-              (totalSeconds / totalDuration) * 100,
-            );
-          }
+          const seconds = timemarkToSeconds(p.timemark);
+          const percent = Math.min(
+            100,
+            Math.round((seconds / totalDuration) * 100),
+          );
 
           mainWindow.webContents.send("preset-progress", {
             current: index,
             total: total,
-            percent: Math.min(100, calculatedPercent),
+            percent,
           });
         },
       });

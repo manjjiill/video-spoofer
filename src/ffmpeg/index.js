@@ -61,8 +61,12 @@ export function runFFmpeg({
       .on("progress", (progress) => {
         if (onProgress) onProgress(progress);
       })
-      // .on("start", (cmd) => console.log("FFmpeg:", cmd))
-      // .on("stderr", (line) => console.log(line))
+      .on("start", (cmd) => {
+        console.log("FFmpeg:", cmd);
+      })
+      .on("stderr", (line) => {
+        // console.log(line)
+      })
       .on("end", resolve)
       .on("error", reject)
       .run();
