@@ -6,8 +6,17 @@ export const getLutPath = (fileName) => {
     ? path.join(process.resourcesPath, "luts", fileName)
     : path.join(app.getAppPath(), "src", "luts", fileName);
 
-  // Normalize all paths to use forward slashes (FFmpeg prefers this on all OS)
-  return path.resolve(fullPath).split(path.sep).join("/");
+  // 1. Normalize to forward slashes
+  let normalizedPath = path.resolve(fullPath).split(path.sep).join("/");
+
+  if (process.platform === "win32") {
+    // 2. Escape the colon: D:/... -> D\:/...
+    normalizedPath = normalizedPath.replace(/:/g, "\\:");
+    // 3. Wrap in single quotes: 'D\:/path/to.cube'
+    return `'${normalizedPath}'`;
+  }
+
+  return normalizedPath;
 };
 
 const LUT_FILES = [
@@ -44,10 +53,6 @@ export const PRESETS_SET_3 = Array.from({ length: 2 }).map((_, i) => ({
   build: () => {
     const randomLutName = pick(LUT_FILES);
     const rawLutPath = getLutPath(randomLutName);
-    const ffmpegSafePath =
-      process.platform === "win32"
-        ? rawLutPath.replace(/:/g, "\\:")
-        : rawLutPath;
 
     const rawBg = pick(BG_COLORS);
     const bg = rawBg.replace("#", "0x");
@@ -109,7 +114,7 @@ export const PRESETS_SET_3 = Array.from({ length: 2 }).map((_, i) => ({
         {
           filter: "lut3d",
           inputs: "scaled",
-          options: { file: ffmpegSafePath },
+          options: `file=${rawLutPath}`,
           outputs: "colored",
         },
         // 5. NEW: Convert to RGBA so rotation 'fillcolor=none' actually works
