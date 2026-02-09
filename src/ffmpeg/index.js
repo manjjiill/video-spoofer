@@ -4,9 +4,11 @@ import path from "path";
 
 let currentCommand = null;
 
-function getVideoCodec() {
-  if (process.platform === "darwin") return "h264_videotoolbox";
-  return "libx264";
+function shouldUseHardwareEncoder({ complexFilters }) {
+  if (!complexFilters) return true;
+
+  const forbidden = ["format", "alphamerge", "geq"];
+  return !complexFilters.some((f) => forbidden.includes(f.filter));
 }
 
 export function runFFmpeg({
@@ -20,19 +22,20 @@ export function runFFmpeg({
   return new Promise((resolve, reject) => {
     fs.mkdirSync(path.dirname(output), { recursive: true });
 
-    const codec = getVideoCodec();
+    const useHW =
+      process.platform === "darwin" &&
+      shouldUseHardwareEncoder({ complexFilters });
+
+    const codec = useHW ? "h264_videotoolbox" : "libx264";
 
     let outputOptions = [
       "-pix_fmt",
       "yuv420p",
       "-movflags",
       "+faststart",
-      "-threads",
-      "2",
-      "-preset",
-      "veryfast",
-      "-tune",
-      "zerolatency",
+      ...(codec === "libx264"
+        ? ["-preset", "veryfast", "-threads", "2"]
+        : ["-allow_sw", "1"]),
       ...args,
     ];
 
