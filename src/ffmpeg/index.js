@@ -4,17 +4,11 @@ import path from "path";
 
 let currentCommand = null;
 
-function shouldUseHardwareEncoder({ complexFilters }) {
-  if (!complexFilters) return true;
-
-  const forbidden = ["format", "alphamerge", "geq"];
-  return !complexFilters.some((f) => forbidden.includes(f.filter));
-}
-
 export function runFFmpeg({
   input,
+  maskPath,
+  bgInput,
   output,
-  args = [],
   filters,
   complexFilters,
   mode,
@@ -23,29 +17,47 @@ export function runFFmpeg({
   return new Promise((resolve, reject) => {
     fs.mkdirSync(path.dirname(output), { recursive: true });
 
-    const useHW =
-      process.platform === "darwin" &&
-      shouldUseHardwareEncoder({ complexFilters });
-    const codec = useHW ? "h264_videotoolbox" : "libx264";
-
     let outputOptions = [
+      "-preset",
+      "slow",
+      "-crf",
+      "18",
+      "-profile:v",
+      "high",
+      "-level",
+      "4.2",
       "-pix_fmt",
       "yuv420p",
       "-movflags",
       "+faststart",
-      ...(codec === "libx264"
-        ? ["-preset", "veryfast", "-threads", "2"]
-        : ["-allow_sw", "1"]),
-      ...args,
+      "-shortest",
     ];
 
-    if (codec === "h264_videotoolbox") {
-      outputOptions.push("-allow_sw", "1");
+    const pitchFactor = 1.04; // 4% higher pitch
+    const tempoCorrection = (1 / pitchFactor).toFixed(5);
+
+    // [0:v] is the main video
+    let cmd = ffmpeg().input(input);
+
+    // [1:v] is the mask (if exists)
+    if (maskPath) {
+      cmd = cmd.input(maskPath);
     }
 
-    let cmd = ffmpeg()
-      .input(input)
-      .videoCodec(codec)
+    // [2:v] is the background gradient
+    if (bgInput) {
+      cmd = cmd.input(bgInput);
+    }
+
+    cmd = cmd
+      .videoCodec("libx264")
+      .audioCodec("aac")
+      .audioBitrate("192k")
+      .audioFilters([
+        `asetrate=44100*${pitchFactor}`,
+        "aresample=44100",
+        `atempo=${tempoCorrection}`,
+      ])
       .outputOptions(outputOptions)
       .output(output);
 
@@ -54,7 +66,9 @@ export function runFFmpeg({
     }
 
     if (mode === "complex" && complexFilters) {
-      cmd = cmd.complexFilter(complexFilters, "outv");
+      cmd = cmd
+        .complexFilter(complexFilters)
+        .outputOptions(["-map", "[outv]", "-map", "0:a:0?"]);
     }
 
     currentCommand = cmd

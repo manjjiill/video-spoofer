@@ -1,18 +1,15 @@
-import path from "path";
 import { app } from "electron";
+import path from "path";
 
 export const getLutPath = (fileName) => {
   const fullPath = app.isPackaged
     ? path.join(process.resourcesPath, "luts", fileName)
     : path.join(app.getAppPath(), "src", "luts", fileName);
 
-  // 1. Normalize to forward slashes
   let normalizedPath = path.resolve(fullPath).split(path.sep).join("/");
 
   if (process.platform === "win32") {
-    // 2. Escape the colon: D:/... -> D\:/...
     normalizedPath = normalizedPath.replace(/:/g, "\\:");
-    // 3. Wrap in single quotes: 'D\:/path/to.cube'
     return `'${normalizedPath}'`;
   }
 
@@ -20,143 +17,186 @@ export const getLutPath = (fileName) => {
 };
 
 const LUT_FILES = [
-  "hong-kong.cube",
-  "cine-wedding.cube",
-  "forest.cube",
-  "neutral.cube",
-  "greensky.cube",
-  "cool-soft.cube",
-  "vintage-gold.cube",
-  "arrival.cube",
-  "green-orange.cube",
-  "sony-s-log.cube",
-  "rec709.cube",
-  "relatives.cube",
-  "correction.cube",
+  "40.cube",
+  "41.cube",
+  "42.cube",
+  "43.cube",
+  "44.cube",
+  "45.cube",
+  "46.cube",
+  "47.cube",
+  "48.cube",
+  "49.cube",
+  "50.cube",
+  "51.cube",
+  "52.cube",
+  "53.cube",
+  "54.cube",
+  "55.cube",
+  "56.cube",
+  "57.cube",
+  "58.cube",
+  "59.cube",
+  "60.cube",
 ];
 
-const BG_COLORS = [
-  "#FDC3A1",
-  "#9CCFFF",
-  "#685AFF",
-  "#C0B87A",
-  "#547792",
-  "#628141",
-  "#B7BDF7",
-  "#F075AE",
-  "#9BC264",
-  "#222222",
-  "#F63049",
-  "#FF5B5B",
-  "#ACBFA4",
-  "#4D2B8C",
-  "#3291B6",
-];
+const SHUFFLED_LUTS = [...LUT_FILES].sort(() => Math.random() - 0.5);
 
-const rand = (min, max) => Math.random() * (max - min) + min;
-const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+export const generatePresetsSet3 = (startId) => {
+  return Array.from({ length: LUT_FILES.length - 1 }).map((_, i) => {
+    const uniqueId = startId + i;
 
-export const PRESETS_SET_3 = Array.from({ length: 20 }).map((_, i) => ({
-  id: i + 1,
-
-  build: () => {
-    const randomLutName = pick(LUT_FILES);
-    const rawLutPath = getLutPath(randomLutName);
-
-    const rawBg = pick(BG_COLORS);
-    const bg = rawBg.replace("#", "0x");
-
-    const cropW = rand(0.05, 0.1).toFixed(2);
-    const cropH = rand(0.05, 0.25).toFixed(2);
-
-    const isNegative = Math.random() > 0.5;
-    const rotDeg = isNegative ? rand(-15, -5) : rand(5, 15);
-    const rotRad = (rotDeg * Math.PI) / 180;
-
-    const tempo = rand(0.94, 0.98).toFixed(3);
-    const rate = Math.round(44100 / tempo);
-
-    console.log(
-      `🎞️ Preset ${i + 1} | Color ${rawBg} | Rotation ${rotDeg.toFixed(1)}°`,
-    );
+    const randomAngle = ((0.5 + Math.random() * 0.5) * Math.PI) / 180;
 
     return {
-      mode: "complex",
-      args: [
-        "-map",
-        "0:a?",
-        "-c:a",
-        "aac",
-        "-b:a",
-        "128k",
-        "-af",
-        `asetrate=${rate},aresample=44100,atempo=${tempo}`,
-      ],
+      id: uniqueId,
+      build: () => {
+        const lutName = SHUFFLED_LUTS[i % SHUFFLED_LUTS.length];
+        const rawLutPath = getLutPath(lutName);
 
-      complexFilters: [
-        // 1. Create Background
-        {
-          filter: "color",
-          options: { c: bg, s: "1080x1920" },
-          outputs: "bg",
-        },
-        // 2. Crop
-        {
-          filter: "crop",
-          inputs: "0:v",
-          options: {
-            w: `iw*(1-${cropW})`,
-            h: `ih*(1-${cropH})`,
-            x: "(iw-ow)/2",
-            y: "(ih-oh)/2",
-          },
-          outputs: "crop",
-        },
-        // 3. Scale
-        {
-          filter: "scale",
-          inputs: "crop",
-          options: { w: 960, h: -2 },
-          outputs: "scaled",
-        },
-        // 4. Apply LUT
-        {
-          filter: "lut3d",
-          inputs: "scaled",
-          options: `file=${rawLutPath}`,
-          outputs: "colored",
-        },
-        // 5. NEW: Convert to RGBA so rotation 'fillcolor=none' actually works
-        {
-          filter: "format",
-          inputs: "colored",
-          options: "rgba",
-          outputs: "ready_to_rotate",
-        },
-        // 6. Rotate (fillcolor=none now refers to the alpha channel)
-        {
-          filter: "rotate",
-          inputs: "ready_to_rotate",
-          options: {
-            angle: rotRad,
-            fillcolor: "none",
-            ow: "hypot(iw,ih)",
-            oh: "hypot(iw,ih)",
-          },
-          outputs: "rotated",
-        },
-        // 7. Final Overlay (Will now show 'bg' through the rotated corners)
-        {
-          filter: "overlay",
-          inputs: ["bg", "rotated"],
-          options: {
-            x: "(W-w)/2",
-            y: "(H-h)/2",
-            shortest: 1,
-          },
-          outputs: "outv",
-        },
-      ],
+        // Micro invisible rotation (-0.5° to +0.5°)
+        const randomAngle = (Math.random() * 1 - 0.5).toFixed(4);
+
+        console.log(`[Preset Vertical ${i + 1}] Rotate: ${randomAngle}`);
+
+        return {
+          mode: "complex",
+          complexFilters: [
+            // ---------------- SCALE TO FILL VERTICAL ----------------
+            {
+              filter: "scale",
+              options: {
+                w: 1080,
+                h: 1920,
+                force_original_aspect_ratio: "increase",
+              },
+              inputs: "0:v",
+              outputs: "scaled",
+            },
+
+            // ---------------- REAL TOP/BOTTOM CROP (10%) ----------------
+            {
+              filter: "crop",
+              options: {
+                w: 1080,
+                h: "1920*0.85",
+                x: "(iw-1080)/2",
+                y: "(ih - 1920*0.85)/2",
+              },
+              inputs: "scaled",
+              outputs: "cropped",
+            },
+
+            // ---------------- PAD BACK TO 1080x1920 ----------------
+            {
+              filter: "pad",
+              options: {
+                w: 1080,
+                h: 1920,
+                x: 0,
+                y: "(oh-ih)/2",
+                color: "black",
+              },
+              inputs: "cropped",
+              outputs: "padded",
+            },
+
+            // ---------------- MICRO ROTATION ----------------
+            {
+              filter: "rotate",
+              options: {
+                a: `${randomAngle}*PI/180`,
+                fillcolor: "black",
+              },
+              inputs: "padded",
+              outputs: "rotated",
+            },
+
+            // ---------------- ZOOM TO HIDE CORNERS ----------------
+            {
+              filter: "scale",
+              options: {
+                w: "iw*1.02",
+                h: "ih*1.02",
+              },
+              inputs: "rotated",
+              outputs: "zoomed",
+            },
+
+            {
+              filter: "crop",
+              options: {
+                w: 1080,
+                h: 1920,
+                x: "(iw-1080)/2",
+                y: "(ih-1920)/2",
+              },
+              inputs: "zoomed",
+              outputs: "final_base",
+            },
+
+            // ================= COLOR PIPELINE =================
+
+            {
+              filter: "normalize",
+              options: {
+                blackpt: "black",
+                whitept: "white",
+                smoothing: 5,
+              },
+              inputs: "final_base",
+              outputs: "norm",
+            },
+
+            {
+              filter: "eq",
+              options: {
+                contrast: 1.03,
+                brightness: 0.01,
+                saturation: 1.02,
+              },
+              inputs: "norm",
+              outputs: "pre_lut",
+            },
+
+            {
+              filter: "split",
+              inputs: "pre_lut",
+              outputs: ["base", "to_lut"],
+            },
+
+            {
+              filter: "lut3d",
+              options: {
+                file: rawLutPath,
+                interp: "tetrahedral",
+              },
+              inputs: "to_lut",
+              outputs: "lut_applied",
+            },
+
+            {
+              filter: "blend",
+              options: {
+                all_expr: "A*0.55 + B*0.45",
+              },
+              inputs: ["base", "lut_applied"],
+              outputs: "blended",
+            },
+
+            {
+              filter: "eq",
+              options: {
+                contrast: 0.97,
+                saturation: 0.93,
+                gamma: 1.02,
+              },
+              inputs: "blended",
+              outputs: "outv",
+            },
+          ],
+        };
+      },
     };
-  },
-}));
+  });
+};

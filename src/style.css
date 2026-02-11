@@ -174,7 +174,7 @@ body {
   display: flex;
   align-items: center;
   gap: 1rem;
-  transform: translateY(-.5rem);
+  transform: translateY(-0.5rem);
 }
 
 .progressContainer .fileProgress .fileProgressText {
@@ -223,6 +223,11 @@ body {
   background-color: transparent;
   border: 1px solid rgba(255, 255, 255, 0.25);
   color: rgba(255, 255, 255, 0.85);
+}
+
+.configuration__row--item .help {
+  color: #ff5b5b;
+  font-size: .85rem;
 }
 
 .actions {

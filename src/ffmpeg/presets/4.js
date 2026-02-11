@@ -1,8 +1,6 @@
 import { app } from "electron";
 import path from "path";
 
-const rand = (min, max) => Math.random() * (max - min) + min;
-
 export const getLutPath = (fileName) => {
   const fullPath = app.isPackaged
     ? path.join(process.resourcesPath, "luts", fileName)
@@ -14,47 +12,134 @@ export const getLutPath = (fileName) => {
     normalizedPath = normalizedPath.replace(/:/g, "\\:");
     return `'${normalizedPath}'`;
   }
+
   return normalizedPath;
 };
 
-export const PRESETS_SET_4 = Array.from({ length: 15 }).map((_, i) => {
-  const lutFileName = `${i + 1}.cube`;
+const getMaskPath = () => {
+  const fullPath = app.isPackaged
+    ? path.join(process.resourcesPath, "assets", "border-radius.png")
+    : path.join(app.getAppPath(), "src", "assets", "border-radius.png");
 
-  return {
-    id: i + 1,
-    build: () => {
-      const safeLutPath = getLutPath(lutFileName);
+  let normalized = path.resolve(fullPath).replace(/\\/g, "/");
 
-      // 1. Calculate Random Crop (Total 5% to 15%)
-      const totalCropPercent = rand(0.05, 0.15); // e.g., 0.10
-      const heightMultiplier = (1 - totalCropPercent).toFixed(3); // e.g., 0.90
-      const topOffsetMultiplier = (totalCropPercent / 2).toFixed(3); // e.g., 0.05
+  if (process.platform === "win32") {
+    normalized = normalized.replace(/:/g, "\\:");
+    return `'${normalized}'`;
+  }
 
-      // 2. Audio Spoofing
-      const tempo = rand(0.94, 0.98).toFixed(3);
-      const rateAdjustment = Math.round(44100 * (1 / tempo));
+  return normalized;
+};
 
-      console.log(
-        `Building Preset ${i + 1}: Total Crop ${Math.round(totalCropPercent * 100)}%`,
-      );
+const LUT_FILES = [
+  "40.cube",
+  "41.cube",
+  "42.cube",
+  "43.cube",
+  "44.cube",
+  "45.cube",
+  "46.cube",
+  "47.cube",
+  "48.cube",
+  "49.cube",
+  "50.cube",
+  "51.cube",
+  "52.cube",
+  "53.cube",
+  "54.cube",
+  "55.cube",
+  "56.cube",
+  "57.cube",
+  "58.cube",
+  "59.cube",
+  "60.cube",
+];
 
-      return {
-        mode: "simple",
-        args: [
-          "-c:a",
-          "aac",
-          "-b:a",
-          "128k",
-          "-af",
-          `asetrate=${rateAdjustment},aresample=44100,atempo=${tempo}`,
-        ],
-        filters: [
-          `crop=iw:ih*${heightMultiplier}:0:ih*${topOffsetMultiplier}`,
-          "hflip",
-          `lut3d=file=${safeLutPath}`,
-          "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black",
-        ].join(","),
-      };
-    },
-  };
-});
+const SHUFFLED_LUTS = [...LUT_FILES].sort(() => Math.random() - 0.5);
+
+export const generatePresetsSet4 = (startId) => {
+  return Array.from({ length: LUT_FILES.length - 1 }).map((_, i) => {
+    const uniqueId = startId + i;
+
+    const randomAngle = ((3 + Math.random()) * Math.PI) / 180;
+
+    return {
+      id: uniqueId,
+      build: () => {
+        const lutName = SHUFFLED_LUTS[i % SHUFFLED_LUTS.length];
+        const rawLutPath = getLutPath(lutName);
+        const maskPath = getMaskPath();
+
+        return {
+          mode: "complex",
+          maskPath: maskPath,
+
+          complexFilters: [
+            // --- STAGE 1: FG PRE-PROCESSING (950x1750) ---
+            {
+              filter: "scale",
+              options: { w: 1000, h: 1850 },
+              inputs: "0:v",
+              outputs: "fg_scaled",
+            },
+            {
+              filter: "normalize",
+              options: { smoothing: 5 },
+              inputs: "fg_scaled",
+              outputs: "fg_normed",
+            },
+            {
+              filter: "split",
+              inputs: "fg_normed",
+              outputs: ["fg_base", "fg_to_lut"],
+            },
+            {
+              filter: "lut3d",
+              options: { file: rawLutPath, interp: "tetrahedral" }, // Faster & Better
+              inputs: "fg_to_lut",
+              outputs: "fg_lut_applied",
+            },
+            {
+              filter: "blend",
+              options: { all_expr: "A*0.55 + B*0.45" },
+              inputs: ["fg_base", "fg_lut_applied"],
+              outputs: "fg_final_color",
+            },
+
+            // --- STAGE 2: MASKING & ROTATION ---
+            {
+              filter: "scale",
+              options: { w: 1000, h: 1850 },
+              inputs: "1:v",
+              outputs: "mask_scaled",
+            },
+            {
+              filter: "alphamerge",
+              inputs: ["fg_final_color", "mask_scaled"],
+              outputs: "fg_rounded",
+            },
+            {
+              filter: "rotate",
+              options: { angle: randomAngle, fillcolor: "none" }, // Use 'none' for alpha transparency
+              inputs: "fg_rounded",
+              outputs: "fg_rotated",
+            },
+
+            // --- STAGE 3: FINAL COMPOSITION (1080x1920) ---
+            {
+              filter: "color",
+              options: { color: "black", size: "1080x1920" },
+              outputs: "bg",
+            },
+            {
+              filter: "overlay",
+              options: { x: "(W-w)/2", y: "(H-h)/2", shortest: 1 },
+              inputs: ["bg", "fg_rotated"],
+              outputs: "outv",
+            },
+          ],
+        };
+      },
+    };
+  });
+};

@@ -6,13 +6,10 @@ export const getLutPath = (fileName) => {
     ? path.join(process.resourcesPath, "luts", fileName)
     : path.join(app.getAppPath(), "src", "luts", fileName);
 
-  // 1. Normalize to forward slashes
   let normalizedPath = path.resolve(fullPath).split(path.sep).join("/");
 
   if (process.platform === "win32") {
-    // 2. Escape the colon: D:/... -> D\:/...
     normalizedPath = normalizedPath.replace(/:/g, "\\:");
-    // 3. Wrap in single quotes: 'D\:/path/to.cube'
     return `'${normalizedPath}'`;
   }
 
@@ -20,55 +17,87 @@ export const getLutPath = (fileName) => {
 };
 
 const LUT_FILES = [
-  "thriller.cube",
-  "filmlook.cube",
-  "killstreak.cube",
-  "kold.cube",
-  "wondar-woman.cube",
-  "blackmagic.cube",
+  "1.cube",
+  "2.cube",
+  "3.cube",
+  "4.cube",
+  "5.cube",
+  "6.cube",
+  "7.cube",
+  "8.cube",
+  "9.cube",
+  "10.cube",
+  "11.cube",
+  "12.cube",
+  "13.cube",
+  "14.cube",
+  "15.cube",
+  "16.cube",
+  "17.cube",
+  "18.cube",
+  "19.cube",
+  "20.cube",
+  "21.cube",
+  "22.cube",
+  "23.cube",
+  "24.cube",
+  "25.cube",
+  "26.cube",
+  "27.cube",
+  "28.cube",
+  "29.cube",
+  "30.cube",
 ];
 
-export const PRESETS_SET_1 = Array.from({ length: 10 }).map((_, i) => {
-  return {
-    id: i + 1,
-    build: () => {
-      const randomLutName =
-        LUT_FILES[Math.floor(Math.random() * LUT_FILES.length)];
-      const rawLutPath = getLutPath(randomLutName);
+const SHUFFLED_LUTS = [...LUT_FILES].sort(() => Math.random() - 0.5);
 
-      const randomAngle = (Math.random() * 30 - 15).toFixed(2);
-      const randomScale = (Math.random() * 0.2 + 0.8).toFixed(2);
+export const generatePresetsSet1 = (startId) => {
+  return Array.from({ length: LUT_FILES.length }).map((_, i) => {
+    const uniqueId = startId + i;
 
-      // Random Audio Tempo (between 0.94 and 0.98)
-      // This subtly slows down the audio, changing the duration
-      const randomTempo = (Math.random() * (0.98 - 0.94) + 0.94).toFixed(3);
+    return {
+      id: uniqueId,
+      build: () => {
+        const lutName = SHUFFLED_LUTS[i % SHUFFLED_LUTS.length];
+        const rawLutPath = getLutPath(lutName);
 
-      // Calculate inverse pitch (to keep audio sounding natural if you wish)
-      // Or just stick to the tempo change for simplicity
-      const rateAdjustment = (44100 * (1 / randomTempo)).toFixed(0);
+        const randomAngle = (Math.random() * 30 - 15).toFixed(2);
+        const randomScale = (Math.random() * 0.2 + 0.8).toFixed(2);
 
-      console.log(
-        `Building Preset ${i + 1}: Angle ${randomAngle}, Scale ${randomScale}`,
-      );
+        console.log(`Building Preset ${i + 1}`);
 
-      return {
-        mode: "simple",
-        args: [
-          "-c:a",
-          "aac",
-          "-b:a",
-          "128k",
-          "-af",
-          `asetrate=${rateAdjustment},aresample=44100,atempo=${randomTempo}`,
-        ],
-        filters: [
-          "hflip",
-          `scale=iw*${randomScale}:ih*${randomScale}`,
-          `rotate=${randomAngle}*PI/180:fillcolor=black`,
-          `lut3d=${rawLutPath}`,
-          "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black",
-        ].join(","),
-      };
-    },
-  };
-});
+        return {
+          mode: "simple",
+          filters: [
+            // Normalize BEFORE LUT
+            "eq=contrast=1.05:brightness=0.015:saturation=1.05",
+            "curves=preset=medium_contrast",
+
+            // Apply LUT correctly
+            `lut3d=${rawLutPath}:interp=tetrahedral`,
+
+            // Post-LUT Softening
+            "eq=contrast=0.95:saturation=0.95",
+
+            // Transforms
+            "hflip",
+            `scale=iw*${randomScale}:ih*${randomScale}:flags=lanczos`,
+            `rotate=${randomAngle}*PI/180:fillcolor=black`,
+
+            // FINAL resolution
+            "scale=1080:1920:flags=lanczos:force_original_aspect_ratio=decrease",
+
+            "noise=alls=40:allf=t+u",
+            // This makes the grain look like actual film stock
+            "boxblur=1:1",
+            // Sharpen the edges of the grain so it pops
+            "unsharp=5:5:0.8:5:5:0.8",
+
+            // Pad last
+            "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black",
+          ].join(","),
+        };
+      },
+    };
+  });
+};

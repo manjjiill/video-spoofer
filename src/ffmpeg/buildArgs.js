@@ -24,6 +24,7 @@ export function buildFFmpegJob({ input, outputDir, preset }) {
 
   return {
     input,
+    maskPath: built.maskPath,
     output,
     args: built.args ?? [],
     filters: built.mode === "simple" ? built.filters : null,

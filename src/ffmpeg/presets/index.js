@@ -1,11 +1,13 @@
-import { PRESETS_SET_1 } from "./1.js";
-import { PRESETS_SET_2 } from "./2.js";
-import { PRESETS_SET_3 } from "./3.js";
-import { PRESETS_SET_4 } from "./4.js";
+import { generatePresetsSet1 } from "./1.js";
+import { generatePresetsSet2 } from "./2.js";
+import { generatePresetsSet3 } from "./3.js";
+import { generatePresetsSet4 } from "./4.js";
+import { generatePresetsSet5 } from "./5.js";
 
 export const PRESETS = [
-  ...PRESETS_SET_1,
-  ...PRESETS_SET_2,
-  ...PRESETS_SET_3,
-  ...PRESETS_SET_4,
+  ...generatePresetsSet1(1),
+  ...generatePresetsSet2(31),
+  ...generatePresetsSet3(41),
+  ...generatePresetsSet4(61),
+  ...generatePresetsSet5(81),
 ];
