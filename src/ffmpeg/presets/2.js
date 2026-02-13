@@ -1,49 +1,44 @@
 import { app } from "electron";
 import path from "path";
 
+/* ========================= LUT PATH ========================= */
 export const getLutPath = (fileName) => {
   const fullPath = app.isPackaged
-    ? path.join(process.resourcesPath, "luts", fileName)
-    : path.join(app.getAppPath(), "src", "luts", fileName);
+    ? path.join(process.resourcesPath, "luts", "blur", fileName)
+    : path.join(app.getAppPath(), "src", "luts", "blur", fileName);
 
-  let normalizedPath = path.resolve(fullPath).split(path.sep).join("/");
+  let normalized = path.resolve(fullPath).replace(/\\/g, "/");
 
   if (process.platform === "win32") {
-    normalizedPath = normalizedPath.replace(/:/g, "\\:");
-    return `'${normalizedPath}'`;
+    normalized = normalized.replace(/:/g, "\\:");
   }
 
-  return normalizedPath;
+  // Required for lut3d inside filter_complex
+  return `'${normalized}'`;
 };
 
 const LUT_FILES = [
-  "20.cube",
-  "21.cube",
-  "22.cube",
-  "23.cube",
-  "24.cube",
-  "25.cube",
-  "26.cube",
-  "27.cube",
-  "28.cube",
-  "29.cube",
-  "30.cube",
-  "31.cube",
-  "32.cube",
-  "33.cube",
-  "34.cube",
-  "35.cube",
-  "36.cube",
-  "37.cube",
-  "38.cube",
-  "39.cube",
-  "40.cube",
+  "1.cube",
+  "2.cube",
+  "3.cube",
+  "4.cube",
+  "5.cube",
+  "6.cube",
+  "7.cube",
+  "8.cube",
+  "9.cube",
+  "10.cube",
+  "11.cube",
+  "12.cube",
+  "13.cube",
+  "14.cube",
+  "15.cube",
 ];
 
 const SHUFFLED_LUTS = [...LUT_FILES].sort(() => Math.random() - 0.5);
 
 export const generatePresetsSet2 = (startId) => {
-  return Array.from({ length: LUT_FILES.length - 1 }).map((_, i) => {
+  return LUT_FILES.map((_, i) => {
     const uniqueId = startId + i;
 
     return {
@@ -52,121 +47,125 @@ export const generatePresetsSet2 = (startId) => {
         const lutName = SHUFFLED_LUTS[i % SHUFFLED_LUTS.length];
         const rawLutPath = getLutPath(lutName);
 
-        const bgZoom = 1.15;
-        const fgCropAmount = 0.15;
-
-        const randomAngle = ((0.5 + Math.random() * 0.5) * Math.PI) / 180;
-
-        console.log(`[Preset ${i + 1}]`);
+        const bgZoom = 1.225;
+        const cropAmount = 0.165; 
 
         return {
           mode: "complex",
           complexFilters: [
-            // ---------------- BACKGROUND ----------------
+            /* ========================= BACKGROUND ========================= */
             {
               filter: "scale",
               options: { w: `iw*${bgZoom}`, h: -2, flags: "lanczos" },
               inputs: "0:v",
-              outputs: "bg_z",
+              outputs: "bg_zoom",
             },
             {
               filter: "scale",
               options: { w: 1080, h: 1920, flags: "lanczos" },
-              inputs: "bg_z",
-              outputs: "bg_f",
+              inputs: "bg_zoom",
+              outputs: "bg_scaled",
             },
             {
               filter: "gblur",
-              options: { sigma: 25 },
-              inputs: "bg_f",
+              options: { sigma: 30 },
+              inputs: "bg_scaled",
               outputs: "bg_blur",
             },
 
-            // ---------------- FOREGROUND ----------------
+            /* ========================= FOREGROUND (CROP TOP/BOTTOM) ========================= */
             {
               filter: "crop",
               options: {
                 w: "iw",
-                h: `ih*(1-${fgCropAmount})`,
+                h: `ih*(1-${cropAmount})`,
                 x: 0,
                 y: "(ih-oh)/2",
               },
               inputs: "0:v",
-              outputs: "fg_c",
+              outputs: "fg_crop",
             },
             {
               filter: "scale",
               options: { w: 1080, h: -2, flags: "lanczos" },
-              inputs: "fg_c",
-              outputs: "fg_s",
+              inputs: "fg_crop",
+              outputs: "fg_scaled",
             },
 
-            // ---------------- MERGE ----------------
+            /* ========================= MERGE FG ON BLURRED BG ========================= */
             {
               filter: "overlay",
-              options: { x: "(W-w)/2", y: "(H-h)/2" },
-              inputs: ["bg_blur", "fg_s"],
+              options: {
+                x: "(W-w)/2",
+                y: "(H-h)/2",
+              },
+              inputs: ["bg_blur", "fg_scaled"],
               outputs: "merged",
             },
 
-            // ---------------- SLIGHT ROTATION ----------------
-            {
-              filter: "rotate",
-              options: {
-                angle: randomAngle,
-                fillcolor: "black",
-                ow: "ceil(rotw(iw)/2)*2",
-                oh: "ceil(roth(ih)/2)*2",
-              },
-              inputs: "merged",
-              outputs: "rotated",
-            },
+            /* ========================= SMART LUT ENGINE ========================= */
 
-            // ================= COLOR ENGINE =================
-
-            // Normalize
-            {
-              filter: "normalize",
-              options: { blackpt: "black", whitept: "white", smoothing: 5 },
-              inputs: "rotated",
-              outputs: "norm",
-            },
-
-            // Pre-LUT Cleanup
+            // Gentle exposure lift
             {
               filter: "eq",
-              options: { contrast: 1.03, brightness: 0.01, saturation: 1.02 },
-              inputs: "norm",
-              outputs: "pre_lut",
+              options: {
+                brightness: 0.04,
+                contrast: 1.015,
+                saturation: 1.04,
+              },
+              inputs: "merged",
+              outputs: "base_pre",
             },
 
-            // Split
+            // Protect shadows & highlights
+            {
+              filter: "curves",
+              options: {
+                r: "0/0 0.25/0.28 0.75/0.72 1/1",
+                g: "0/0 0.25/0.28 0.75/0.72 1/1",
+                b: "0/0 0.25/0.28 0.75/0.72 1/1",
+              },
+              inputs: "base_pre",
+              outputs: "base_safe",
+            },
+
+            // Split for blend LUT
             {
               filter: "split",
-              inputs: "pre_lut",
+              inputs: "base_safe",
               outputs: ["base", "to_lut"],
             },
 
-            // LUT (tetrahedral interpolation)
+            // Apply LUT
             {
               filter: "lut3d",
-              options: { file: rawLutPath, interp: "tetrahedral" },
+              options: {
+                file: rawLutPath,
+                interp: "tetrahedral",
+              },
               inputs: "to_lut",
               outputs: "lut_applied",
             },
 
-            // LUT Blend
+            // Controlled blend (safe for all clips)
             {
               filter: "blend",
-              options: { all_expr: "A*0.55 + B*0.45" },
+              options: {
+                all_mode: "overlay",
+                all_opacity: 0.58,
+              },
               inputs: ["base", "lut_applied"],
               outputs: "blended",
             },
 
-            // Cinematic Soft Finish
+            // Cinematic soften
             {
               filter: "eq",
-              options: { contrast: 0.97, saturation: 0.93, gamma: 1.02 },
+              options: {
+                contrast: 0.97,
+                saturation: 0.94,
+                gamma: 1.02,
+              },
               inputs: "blended",
               outputs: "outv",
             },

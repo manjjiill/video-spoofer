@@ -1,19 +1,22 @@
 import { app } from "electron";
 import path from "path";
 
+/* =========================
+   LUT PATH
+========================= */
 export const getLutPath = (fileName) => {
   const fullPath = app.isPackaged
-    ? path.join(process.resourcesPath, "luts", fileName)
-    : path.join(app.getAppPath(), "src", "luts", fileName);
+    ? path.join(process.resourcesPath, "luts", "fairytale", fileName)
+    : path.join(app.getAppPath(), "src", "luts", "fairytale", fileName);
 
-  let normalizedPath = path.resolve(fullPath).split(path.sep).join("/");
+  let normalized = path.resolve(fullPath).replace(/\\/g, "/");
 
   if (process.platform === "win32") {
-    normalizedPath = normalizedPath.replace(/:/g, "\\:");
-    return `'${normalizedPath}'`;
+    normalized = normalized.replace(/:/g, "\\:");
   }
 
-  return normalizedPath;
+  // Required for lut3d inside filter_complex
+  return `'${normalized}'`;
 };
 
 const LUT_FILES = [
@@ -32,21 +35,6 @@ const LUT_FILES = [
   "13.cube",
   "14.cube",
   "15.cube",
-  "16.cube",
-  "17.cube",
-  "18.cube",
-  "19.cube",
-  "20.cube",
-  "21.cube",
-  "22.cube",
-  "23.cube",
-  "24.cube",
-  "25.cube",
-  "26.cube",
-  "27.cube",
-  "28.cube",
-  "29.cube",
-  "30.cube",
 ];
 
 const SHUFFLED_LUTS = [...LUT_FILES].sort(() => Math.random() - 0.5);
@@ -59,43 +47,131 @@ export const generatePresetsSet1 = (startId) => {
       id: uniqueId,
       build: () => {
         const lutName = SHUFFLED_LUTS[i % SHUFFLED_LUTS.length];
-        const rawLutPath = getLutPath(lutName);
+        const lutPath = getLutPath(lutName);
 
         const randomAngle = (Math.random() * 30 - 15).toFixed(2);
         const randomScale = (Math.random() * 0.2 + 0.8).toFixed(2);
 
-        console.log(`Building Preset ${i + 1}`);
+        console.log(lutPath);
 
         return {
-          mode: "simple",
-          filters: [
-            // Normalize BEFORE LUT
-            "eq=contrast=1.05:brightness=0.015:saturation=1.05",
-            "curves=preset=medium_contrast",
+          mode: "complex",
+          complexFilters: [
+            // Lift shadows gently (important)
+            {
+              filter: "eq",
+              options: {
+                brightness: 0.04,
+                contrast: 1.015,
+                saturation: 1.05,
+              },
+              inputs: "0:v",
+              outputs: "base_pre",
+            },
 
-            // Apply LUT correctly
-            `lut3d=${rawLutPath}:interp=tetrahedral`,
+            // Gentle shadow + highlight protection
+            {
+              filter: "curves",
+              options: {
+                r: "0/0 0.25/0.28 0.75/0.72 1/1",
+                g: "0/0 0.25/0.28 0.75/0.72 1/1",
+                b: "0/0 0.25/0.28 0.75/0.72 1/1",
+              },
+              inputs: "base_pre",
+              outputs: "base_lift",
+            },
 
-            // Post-LUT Softening
-            "eq=contrast=0.95:saturation=0.95",
+            // Split for blend-based LUT
+            {
+              filter: "split",
+              inputs: "base_lift",
+              outputs: ["original", "lut_input"],
+            },
+
+            // Apply LUT
+            {
+              filter: "lut3d",
+              options: {
+                file: lutPath,
+                interp: "tetrahedral",
+              },
+              inputs: "lut_input",
+              outputs: "lut_applied",
+            },
+
+            // Blend at 55% intensity
+            {
+              filter: "blend",
+              options: {
+                all_mode: "overlay",
+                all_opacity: 0.6,
+              },
+              inputs: ["original", "lut_applied"],
+              outputs: "colored",
+            },
+
+            // Slight soften after LUT
+            {
+              filter: "eq",
+              options: {
+                contrast: 0.98,
+                saturation: 0.97,
+              },
+              inputs: "colored",
+              outputs: "final_color",
+            },
 
             // Transforms
-            "hflip",
-            `scale=iw*${randomScale}:ih*${randomScale}:flags=lanczos`,
-            `rotate=${randomAngle}*PI/180:fillcolor=black`,
+            {
+              filter: "hflip",
+              inputs: "final_color",
+              outputs: "flipped",
+            },
+            {
+              filter: "scale",
+              options: {
+                w: `iw*${randomScale}`,
+                h: `ih*${randomScale}`,
+                flags: "lanczos",
+              },
+              inputs: "flipped",
+              outputs: "scaled",
+            },
+            {
+              filter: "rotate",
+              options: {
+                angle: `${randomAngle}*PI/180`,
+                fillcolor: "black",
+              },
+              inputs: "scaled",
+              outputs: "rotated",
+            },
 
-            // FINAL resolution
-            "scale=1080:1920:flags=lanczos:force_original_aspect_ratio=decrease",
-
-            "noise=alls=40:allf=t+u",
-            // This makes the grain look like actual film stock
-            "boxblur=1:1",
-            // Sharpen the edges of the grain so it pops
-            "unsharp=5:5:0.8:5:5:0.8",
-
-            // Pad last
-            "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black",
-          ].join(","),
+            // Final resolution
+            {
+              filter: "scale",
+              options: {
+                w: 1080,
+                h: 1920,
+                flags: "lanczos",
+                force_original_aspect_ratio: "decrease",
+              },
+              inputs: "rotated",
+              outputs: "resized",
+            },
+            {
+              filter: "pad",
+              options: {
+                w: 1080,
+                h: 1920,
+                x: "(ow-iw)/2",
+                y: "(oh-ih)/2",
+                color: "black",
+              },
+              inputs: "resized",
+              outputs: "outv",
+            },
+          ],
         };
       },
     };

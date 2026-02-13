@@ -1,5 +1,6 @@
 import path from "path";
 import ffmpeg from "fluent-ffmpeg";
+import fs from "fs";
 import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
 import { buildFFmpegJob } from "./ffmpeg/buildArgs.js";
 import { runFFmpeg, stopFFmpeg } from "./ffmpeg/index.js";
@@ -14,6 +15,21 @@ function getDuration(input) {
     });
   });
 }
+
+const VIDEO_EXTENSIONS = [
+  ".mp4",
+  ".mov",
+  ".mkv",
+  ".avi",
+  ".webm",
+  ".m4v",
+  ".flv",
+  ".wmv",
+];
+
+const isVideo = (fileName) => {
+  return VIDEO_EXTENSIONS.includes(path.extname(fileName).toLowerCase());
+};
 
 function timemarkToSeconds(t) {
   const parts = t.split(":").map(Number);
@@ -44,8 +60,8 @@ function createWindow() {
 
 ipcMain.handle("pick-input-video", async () => {
   const result = await dialog.showOpenDialog({
-    properties: ["openFile"],
-    filters: [{ name: "MP4 Videos", extensions: ["mp4"] }],
+    properties: ["openFile", "openDirectory"],
+    filters: [{ name: "Videos", extensions: VIDEO_EXTENSIONS }],
   });
 
   return result.canceled ? null : result.filePaths[0];
@@ -63,63 +79,88 @@ ipcMain.handle("start-processing", async (_, payload) => {
   const { input, outputDir, variations } = payload;
   isCancelled = false;
 
-  // 1. Get total duration of the input video once
-  const totalDuration = await getDuration(input);
+  // new process
+  // 1. Identify all videos to process
+  let videoQueue = [];
+  const stats = fs.statSync(input);
 
-  console.log("Input Duration:", totalDuration);
+  if (stats.isDirectory()) {
+    videoQueue = fs
+      .readdirSync(input)
+      .filter(isVideo)
+      .map((file) => path.join(input, file));
+  } else {
+    videoQueue = [input];
+  }
+
+  if (videoQueue.length === 0) return { done: false, error: "No videos found" };
+
+  const totalVideos = videoQueue.length;
+  const totalTasks = totalVideos * variations;
+  let globalCounter = 0;
 
   const { PRESETS } = await import(
     `./ffmpeg/presets/index.js?update=${Date.now()}`
   );
 
-  const selectedPresets = pickRandomPresets(PRESETS, variations);
+  for (let vIdx = 0; vIdx < totalVideos; vIdx++) {
+    if (isCancelled) return { cancelled: true };
 
-  let index = 1;
-  const total = selectedPresets.length;
+    const currentVideoPath = videoQueue[vIdx];
+    const videoName = path.basename(currentVideoPath);
+    const totalDuration = await getDuration(currentVideoPath);
 
-  for (const preset of selectedPresets) {
-    if (isCancelled) {
-      return { cancelled: true };
-    }
+    const selectedPresets = pickRandomPresets(PRESETS, variations);
 
-    const args = buildFFmpegJob({
-      input,
-      outputDir,
-      preset: preset,
-    });
+    console.log(selectedPresets, "presets");
 
-    try {
-      await runFFmpeg({
-        ...args,
+    for (let pIdx = 0; pIdx < selectedPresets.length; pIdx++) {
+      if (isCancelled) return { cancelled: true };
 
-        onProgress: (p) => {
-          if (!p.timemark) return;
+      const preset = selectedPresets[pIdx];
+      const currentPresetNumber = pIdx + 1;
 
-          const seconds = timemarkToSeconds(p.timemark);
-
-          const percent = Math.min(
-            100,
-            Math.max(0, Math.round((seconds / totalDuration) * 100)),
-          );
-
-          mainWindow.webContents.send("preset-progress", {
-            current: index,
-            total: total,
-            percent,
-          });
-        },
+      const args = buildFFmpegJob({
+        input: currentVideoPath,
+        outputDir: outputDir,
+        preset: preset,
+        index: currentPresetNumber,
       });
-    } catch (err) {
-      console.error(`Error in preset ${index}:`, err);
+
+      try {
+        await runFFmpeg({
+          ...args,
+          onProgress: (p) => {
+            if (!p.timemark) return;
+            const seconds = timemarkToSeconds(p.timemark);
+            const percent = Math.min(
+              100,
+              Math.max(0, Math.round((seconds / totalDuration) * 100)),
+            );
+
+            mainWindow.webContents.send("preset-progress", {
+              current: currentPresetNumber,
+              total: variations,
+              percent,
+            });
+          },
+        });
+
+        globalCounter++;
+
+        mainWindow.webContents.send("processing-progress", {
+          current: globalCounter,
+          total: totalTasks,
+          percent: Math.round((globalCounter / totalTasks) * 100),
+        });
+      } catch (err) {
+        console.error(
+          `Error processing ${videoName} preset ${currentPresetNumber}:`,
+          err,
+        );
+        globalCounter++;
+      }
     }
-
-    mainWindow.webContents.send("processing-progress", {
-      current: index,
-      total: variations,
-      percent: Math.round((index / selectedPresets.length) * 100),
-    });
-
-    index++;
   }
 
   return { done: true };
@@ -136,6 +177,23 @@ ipcMain.handle("get-preset-count", async () => {
   );
 
   return PRESETS.length;
+});
+
+ipcMain.handle("get-total-task-count", async (_, { input, variations }) => {
+  const stats = fs.statSync(input);
+  let videoCount = 0;
+
+  if (stats.isDirectory()) {
+    const files = fs.readdirSync(input);
+    videoCount = files.filter((file) => {
+      const ext = path.extname(file).toLowerCase();
+      return VIDEO_EXTENSIONS.includes(ext);
+    }).length;
+  } else {
+    videoCount = 1;
+  }
+
+  return videoCount * variations;
 });
 
 ipcMain.handle("open-folder", async (_e, folderPath) => {

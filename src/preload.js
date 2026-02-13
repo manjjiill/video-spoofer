@@ -14,4 +14,6 @@ contextBridge.exposeInMainWorld("api", {
   openFolder: (path) => ipcRenderer.invoke("open-folder", path),
   onPresetProgress: (cb) =>
     ipcRenderer.on("preset-progress", (_, data) => cb(data)),
+  getTotalTaskCount: (payload) =>
+    ipcRenderer.invoke("get-total-task-count", payload),
 });

@@ -14,8 +14,15 @@ export function buildFFmpegJob({ input, outputDir, preset }) {
   const baseName = parsed.name;
   const ext = parsed.ext || ".mp4";
 
+  const videoFolder = path.join(outputDir, baseName);
+
+  if (!fs.existsSync(videoFolder)) {
+    fs.mkdirSync(videoFolder, { recursive: true });
+  }
+
   const outputFileName = `${baseName}_v${preset.id}${ext}`;
-  const output = path.join(outputDir, outputFileName);
+  const output = path.join(videoFolder, outputFileName);
+
   const built = preset.build();
 
   if (!built || !built.mode) {

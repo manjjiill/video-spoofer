@@ -24,9 +24,14 @@ export function initActions() {
 
     appState.isProcessing = true;
 
+    const totalTasks = await window.api.getTotalTaskCount({
+      input: appState.inputVideo,
+      variations: appState.variationCount,
+    });
+
     const progressLabel = document.querySelector(".filesDone");
     if (progressLabel) {
-      progressLabel.textContent = `0/${appState.variationCount} Done`;
+      progressLabel.textContent = `0/${totalTasks} Done`;
     }
 
     setLoading(true);

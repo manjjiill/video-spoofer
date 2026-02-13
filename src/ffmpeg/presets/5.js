@@ -2,7 +2,7 @@ import { app } from "electron";
 import path from "path";
 
 /* =========================
-   LUT PATH (Filter Safe)
+   LUT PATH
 ========================= */
 export const getLutPath = (fileName) => {
   const fullPath = app.isPackaged
@@ -30,6 +30,17 @@ const getGradientPath = () => {
   return path.resolve(fullPath);
 };
 
+const getRandomRotation = () => {
+  const angles = [
+    (-15 * Math.PI) / 180,
+    (15 * Math.PI) / 180,
+    (-10 * Math.PI) / 180,
+    (10 * Math.PI) / 180,
+  ];
+
+  return angles[Math.floor(Math.random() * angles.length)];
+};
+
 const LUT_FILES = [
   "1.cube",
   "2.cube",
@@ -41,18 +52,10 @@ const LUT_FILES = [
   "8.cube",
   "9.cube",
   "10.cube",
-  "11.cube",
-  "12.cube",
-  "13.cube",
-  "14.cube",
-  "15.cube",
 ];
 
 const SHUFFLED_LUTS = [...LUT_FILES].sort(() => Math.random() - 0.5);
 
-/* =========================
-   SET 5 – Gradient + LUT + 15° Rotate
-========================= */
 export const generatePresetsSet5 = (startId) => {
   return Array.from({ length: LUT_FILES.length }).map((_, i) => {
     const uniqueId = startId + i;
@@ -64,45 +67,52 @@ export const generatePresetsSet5 = (startId) => {
       build: () => {
         const lutPath = getLutPath(lutName);
         const gradientPath = getGradientPath();
+        const randomAngle = getRandomRotation();
 
         return {
           mode: "complex",
-
-          // Gradient becomes second input (index 1)
           maskPath: gradientPath,
 
           complexFilters: [
-            /* =========================
-               STAGE 1 – FOREGROUND SCALE
-               (Fill width, maintain aspect ratio)
-            ========================= */
-            {
-              filter: "scale",
-              options: { w: 1080, h: -1 },
-              inputs: "0:v",
-              outputs: "fg_scaled",
-            },
+            /* ========================= SMART NORMALIZATION ========================= */
 
             {
               filter: "eq",
               options: {
-                contrast: 1.05,
-                brightness: 0.02,
-                saturation: 1.1,
+                brightness: 0.045,
+                contrast: 1.015,
+                saturation: 1.05,
               },
-              inputs: "fg_scaled",
-              outputs: "fg_norm",
+              inputs: "0:v",
+              outputs: "base_pre",
+            },
+
+            // Gentle shadow protection curve
+            {
+              filter: "curves",
+              options: {
+                r: "0/0 0.25/0.28 1/1",
+                g: "0/0 0.25/0.28 1/1",
+                b: "0/0 0.25/0.28 1/1",
+              },
+              inputs: "base_pre",
+              outputs: "base_safe",
+            },
+
+            {
+              filter: "scale",
+              options: { w: 1080, h: -1 },
+              inputs: "base_safe",
+              outputs: "fg_scaled",
             },
 
             {
               filter: "split",
-              inputs: "fg_norm",
-              outputs: ["fg_base", "fg_lut_input"],
+              inputs: "fg_scaled",
+              outputs: ["fg_original", "fg_lut_input"],
             },
 
-            /* =========================
-               STAGE 2 – LUT
-            ========================= */
+            /* ========================= CONTROLLED LUT ========================= */
             {
               filter: "lut3d",
               options: {
@@ -113,30 +123,40 @@ export const generatePresetsSet5 = (startId) => {
               outputs: "fg_lut",
             },
 
+            // Balanced intensity (safe for all clips)
             {
               filter: "blend",
               options: {
                 all_mode: "overlay",
-                all_opacity: 0.6,
+                all_opacity: 0.65,
               },
-              inputs: ["fg_base", "fg_lut"],
+              inputs: ["fg_original", "fg_lut"],
               outputs: "fg_color",
             },
 
-            /* =========================
-               STAGE 3 – RGBA + SAFE ROTATION
-            ========================= */
+            // Slight soften after LUT
+            {
+              filter: "eq",
+              options: {
+                contrast: 0.98,
+                saturation: 0.97,
+              },
+              inputs: "fg_color",
+              outputs: "fg_final",
+            },
+
+            /* ========================= ROTATION ========================= */
             {
               filter: "format",
               options: { pix_fmts: "rgba" },
-              inputs: "fg_color",
+              inputs: "fg_final",
               outputs: "fg_rgba",
             },
 
             {
               filter: "rotate",
               options: {
-                angle: 0.261799, // 15 degrees
+                angle: randomAngle,
                 fillcolor: "none",
                 ow: "rotw(iw)",
                 oh: "roth(ih)",
@@ -145,9 +165,8 @@ export const generatePresetsSet5 = (startId) => {
               outputs: "fg_rotated",
             },
 
-            /* =========================
-               STAGE 4 – BACKGROUND
-            ========================= */
+            /* ========================= BACKGROUND ========================= */
+
             {
               filter: "scale",
               options: { w: 1080, h: 1920 },
@@ -155,9 +174,6 @@ export const generatePresetsSet5 = (startId) => {
               outputs: "bg_scaled",
             },
 
-            /* =========================
-               FINAL COMPOSITION
-            ========================= */
             {
               filter: "overlay",
               options: {

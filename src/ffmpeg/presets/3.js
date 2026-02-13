@@ -1,52 +1,47 @@
 import { app } from "electron";
 import path from "path";
 
+/* =========================
+   LUT PATH
+========================= */
 export const getLutPath = (fileName) => {
   const fullPath = app.isPackaged
-    ? path.join(process.resourcesPath, "luts", fileName)
-    : path.join(app.getAppPath(), "src", "luts", fileName);
+    ? path.join(process.resourcesPath, "luts", "crop", fileName)
+    : path.join(app.getAppPath(), "src", "luts", "crop", fileName);
 
-  let normalizedPath = path.resolve(fullPath).split(path.sep).join("/");
+  let normalized = path.resolve(fullPath).replace(/\\/g, "/");
 
   if (process.platform === "win32") {
-    normalizedPath = normalizedPath.replace(/:/g, "\\:");
-    return `'${normalizedPath}'`;
+    normalized = normalized.replace(/:/g, "\\:");
   }
 
-  return normalizedPath;
+  // Required for lut3d inside filter_complex
+  return `'${normalized}'`;
 };
 
 const LUT_FILES = [
-  "40.cube",
-  "41.cube",
-  "42.cube",
-  "43.cube",
-  "44.cube",
-  "45.cube",
-  "46.cube",
-  "47.cube",
-  "48.cube",
-  "49.cube",
-  "50.cube",
-  "51.cube",
-  "52.cube",
-  "53.cube",
-  "54.cube",
-  "55.cube",
-  "56.cube",
-  "57.cube",
-  "58.cube",
-  "59.cube",
-  "60.cube",
+  "1.cube",
+  "2.cube",
+  "3.cube",
+  "4.cube",
+  "5.cube",
+  "6.cube",
+  "7.cube",
+  "8.cube",
+  "9.cube",
+  "10.cube",
+  "11.cube",
+  "12.cube",
+  "13.cube",
+  "14.cube",
+  "15.cube",
 ];
 
 const SHUFFLED_LUTS = [...LUT_FILES].sort(() => Math.random() - 0.5);
 
 export const generatePresetsSet3 = (startId) => {
-  return Array.from({ length: LUT_FILES.length - 1 }).map((_, i) => {
+  return Array.from({ length: LUT_FILES.length }).map((_, i) => {
     const uniqueId = startId + i;
-
-    const randomAngle = ((0.5 + Math.random() * 0.5) * Math.PI) / 180;
 
     return {
       id: uniqueId,
@@ -54,15 +49,19 @@ export const generatePresetsSet3 = (startId) => {
         const lutName = SHUFFLED_LUTS[i % SHUFFLED_LUTS.length];
         const rawLutPath = getLutPath(lutName);
 
-        // Micro invisible rotation (-0.5° to +0.5°)
-        const randomAngle = (Math.random() * 1 - 0.5).toFixed(4);
+        // 🎯 Random rotation 2°–5° (positive or negative)
+        const rotationDeg = Math.random() * 3 + 2; // 2 → 5
+        const rotationSign = Math.random() < 0.5 ? -1 : 1;
+        const randomAngle = (rotationDeg * rotationSign * Math.PI) / 180;
 
-        console.log(`[Preset Vertical ${i + 1}] Rotate: ${randomAngle}`);
+        // 🎯 Random crop 14%–20%
+        const cropPercent = Math.random() * (0.2 - 0.14) + 0.14;
 
         return {
           mode: "complex",
           complexFilters: [
-            // ---------------- SCALE TO FILL VERTICAL ----------------
+            /* ================= SCALE TO FILL VERTICAL ================= */
+
             {
               filter: "scale",
               options: {
@@ -74,20 +73,22 @@ export const generatePresetsSet3 = (startId) => {
               outputs: "scaled",
             },
 
-            // ---------------- REAL TOP/BOTTOM CROP (10%) ----------------
+            /* ================= RANDOM TOP/BOTTOM CROP ================= */
+
             {
               filter: "crop",
               options: {
                 w: 1080,
-                h: "1920*0.85",
+                h: `1920*(1-${cropPercent})`,
                 x: "(iw-1080)/2",
-                y: "(ih - 1920*0.85)/2",
+                y: `(ih - 1920*(1-${cropPercent}))/2`,
               },
               inputs: "scaled",
               outputs: "cropped",
             },
 
-            // ---------------- PAD BACK TO 1080x1920 ----------------
+            /* ================= PAD BACK TO 1080x1920 ================= */
+
             {
               filter: "pad",
               options: {
@@ -101,18 +102,22 @@ export const generatePresetsSet3 = (startId) => {
               outputs: "padded",
             },
 
-            // ---------------- MICRO ROTATION ----------------
+            /* ================= RANDOM ROTATION ================= */
+
             {
               filter: "rotate",
               options: {
-                a: `${randomAngle}*PI/180`,
+                angle: randomAngle,
                 fillcolor: "black",
+                ow: "rotw(iw)",
+                oh: "roth(ih)",
               },
               inputs: "padded",
               outputs: "rotated",
             },
 
-            // ---------------- ZOOM TO HIDE CORNERS ----------------
+            /* ================= SLIGHT ZOOM TO HIDE CORNERS ================= */
+
             {
               filter: "scale",
               options: {
@@ -135,36 +140,40 @@ export const generatePresetsSet3 = (startId) => {
               outputs: "final_base",
             },
 
-            // ================= COLOR PIPELINE =================
+            /* ================= SMART LUT ENGINE ================= */
 
-            {
-              filter: "normalize",
-              options: {
-                blackpt: "black",
-                whitept: "white",
-                smoothing: 5,
-              },
-              inputs: "final_base",
-              outputs: "norm",
-            },
-
+            // Gentle exposure lift
             {
               filter: "eq",
               options: {
-                contrast: 1.03,
-                brightness: 0.01,
-                saturation: 1.02,
+                brightness: 0.045,
+                contrast: 1.015,
+                saturation: 1.04,
               },
-              inputs: "norm",
-              outputs: "pre_lut",
+              inputs: "final_base",
+              outputs: "base_pre",
             },
 
+            // Shadow + highlight protection
+            {
+              filter: "curves",
+              options: {
+                r: "0/0 0.25/0.28 0.75/0.72 1/1",
+                g: "0/0 0.25/0.28 0.75/0.72 1/1",
+                b: "0/0 0.25/0.28 0.75/0.72 1/1",
+              },
+              inputs: "base_pre",
+              outputs: "base_safe",
+            },
+
+            // Split
             {
               filter: "split",
-              inputs: "pre_lut",
+              inputs: "base_safe",
               outputs: ["base", "to_lut"],
             },
 
+            // Apply LUT
             {
               filter: "lut3d",
               options: {
@@ -175,20 +184,23 @@ export const generatePresetsSet3 = (startId) => {
               outputs: "lut_applied",
             },
 
+            // Controlled blend (safe for all clips)
             {
               filter: "blend",
               options: {
-                all_expr: "A*0.55 + B*0.45",
+                all_mode: "overlay",
+                all_opacity: 0.58,
               },
               inputs: ["base", "lut_applied"],
               outputs: "blended",
             },
 
+            // Cinematic finish
             {
               filter: "eq",
               options: {
                 contrast: 0.97,
-                saturation: 0.93,
+                saturation: 0.94,
                 gamma: 1.02,
               },
               inputs: "blended",
