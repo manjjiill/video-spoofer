@@ -79,8 +79,6 @@ ipcMain.handle("start-processing", async (_, payload) => {
   const { input, outputDir, variations } = payload;
   isCancelled = false;
 
-  // new process
-  // 1. Identify all videos to process
   let videoQueue = [];
   const stats = fs.statSync(input);
 
@@ -146,6 +144,8 @@ ipcMain.handle("start-processing", async (_, payload) => {
           },
         });
 
+        console.log(`DONE preset ${preset.id}`);
+
         globalCounter++;
 
         mainWindow.webContents.send("processing-progress", {
@@ -154,10 +154,15 @@ ipcMain.handle("start-processing", async (_, payload) => {
           percent: Math.round((globalCounter / totalTasks) * 100),
         });
       } catch (err) {
-        console.error(
-          `Error processing ${videoName} preset ${currentPresetNumber}:`,
-          err,
-        );
+        console.error(`FAILED preset ${preset.id}`);
+
+        const errorMessage = err?.message || "FFmpeg crashed unexpectedly";
+
+        // 🔥 Send only the error to renderer
+        if (mainWindow) {
+          mainWindow.webContents.send("ffmpeg-error", errorMessage);
+        }
+
         globalCounter++;
       }
     }

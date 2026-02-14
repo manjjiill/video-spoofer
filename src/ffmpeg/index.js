@@ -19,9 +19,11 @@ export function runFFmpeg({
 
     let outputOptions = [
       "-preset",
-      "slow",
+      // "slow",
+      "medium",
       "-crf",
-      "18",
+      // "18",
+      "21",
       "-profile:v",
       "high",
       "-level",
@@ -79,10 +81,35 @@ export function runFFmpeg({
         console.log("FFmpeg:", cmd);
       })
       .on("stderr", (line) => {
-        // console.log(line)
+        // console.log(line);
       })
-      .on("end", resolve)
-      .on("error", reject)
+      .on("end", () => {
+        resolve();
+      })
+      .on("error", (err, stdout, stderr) => {
+        const errorMessage =
+          stderr && stderr.trim().length > 0
+            ? stderr
+            : err?.message || "Unknown FFmpeg error";
+
+        reject(new Error(errorMessage));
+      })
+      .on("exit", (code, signal) => {
+        if (code !== 0) {
+          let message = "";
+
+          if (code === 137 || signal === "SIGKILL") {
+            message =
+              "FFmpeg was killed by the system (Possible memory limit).";
+          } else if (signal) {
+            message = `FFmpeg terminated by signal: ${signal}`;
+          } else {
+            message = `FFmpeg exited with code: ${code}`;
+          }
+
+          reject(new Error(message));
+        }
+      })
       .run();
   });
 }

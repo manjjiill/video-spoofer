@@ -16,4 +16,6 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.on("preset-progress", (_, data) => cb(data)),
   getTotalTaskCount: (payload) =>
     ipcRenderer.invoke("get-total-task-count", payload),
+  onFFmpegError: (callback) =>
+    ipcRenderer.on("ffmpeg-error", (_, error) => callback(error)),
 });
