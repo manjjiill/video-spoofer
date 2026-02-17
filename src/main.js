@@ -112,24 +112,85 @@ ipcMain.handle("start-processing", async (_, payload) => {
 
     console.log(selectedPresets, "presets");
 
+    // for (let pIdx = 0; pIdx < selectedPresets.length; pIdx++) {
+    //   if (isCancelled) return { cancelled: true };
+
+    //   const preset = selectedPresets[pIdx];
+    //   const currentPresetNumber = pIdx + 1;
+
+    //   const args = buildFFmpegJob({
+    //     input: currentVideoPath,
+    //     outputDir: outputDir,
+    //     preset: preset,
+    //     index: currentPresetNumber,
+    //   });
+
+    //   try {
+    //     await runFFmpeg({
+    //       ...args,
+    //       onProgress: (p) => {
+    //         if (!p.timemark) return;
+    //         const seconds = timemarkToSeconds(p.timemark);
+    //         const percent = Math.min(
+    //           100,
+    //           Math.max(0, Math.round((seconds / totalDuration) * 100)),
+    //         );
+
+    //         mainWindow.webContents.send("preset-progress", {
+    //           current: currentPresetNumber,
+    //           total: variations,
+    //           percent,
+    //         });
+    //       },
+    //     });
+
+    //     console.log(`DONE preset ${preset.id}`);
+
+    //     globalCounter++;
+
+    //     mainWindow.webContents.send("processing-progress", {
+    //       current: globalCounter,
+    //       total: totalTasks,
+    //       percent: Math.round((globalCounter / totalTasks) * 100),
+    //     });
+    //   } catch (err) {
+    //     console.error("Preset failed:", preset);
+    //     console.error("Error object:", err);
+
+    //     const safePresetId = preset?.id ?? "Unknown";
+    //     const safeMessage =
+    //       err?.message || err?.toString() || "Unknown FFmpeg error";
+
+    //     if (mainWindow) {
+    //       mainWindow.webContents.send("ffmpeg-error", {
+    //         presetId: safePresetId,
+    //         message: safeMessage,
+    //       });
+    //     }
+
+    //     globalCounter++;
+    //   }
+    // }
+
     for (let pIdx = 0; pIdx < selectedPresets.length; pIdx++) {
       if (isCancelled) return { cancelled: true };
 
       const preset = selectedPresets[pIdx];
       const currentPresetNumber = pIdx + 1;
 
-      const args = buildFFmpegJob({
-        input: currentVideoPath,
-        outputDir: outputDir,
-        preset: preset,
-        index: currentPresetNumber,
-      });
-
       try {
+        const args = buildFFmpegJob({
+          input: currentVideoPath,
+          outputDir,
+          preset,
+          index: currentPresetNumber,
+        });
+
         await runFFmpeg({
           ...args,
           onProgress: (p) => {
             if (!p.timemark) return;
+
             const seconds = timemarkToSeconds(p.timemark);
             const percent = Math.min(
               100,
@@ -144,27 +205,28 @@ ipcMain.handle("start-processing", async (_, payload) => {
           },
         });
 
-        console.log(`DONE preset ${preset.id}`);
-
-        globalCounter++;
-
-        mainWindow.webContents.send("processing-progress", {
-          current: globalCounter,
-          total: totalTasks,
-          percent: Math.round((globalCounter / totalTasks) * 100),
-        });
+        console.log(`✅ DONE preset ${preset.id}`);
       } catch (err) {
-        console.error(`FAILED preset ${preset.id}`);
+        console.error(`❌ FAILED preset ${preset?.id}`);
+        console.error(err);
 
-        const errorMessage = err?.message || "FFmpeg crashed unexpectedly";
-
-        // 🔥 Send only the error to renderer
         if (mainWindow) {
-          mainWindow.webContents.send("ffmpeg-error", errorMessage);
+          mainWindow.webContents.send("ffmpeg-error", {
+            presetId: preset?.id ?? "Unknown",
+            message: err?.message ?? "Unknown FFmpeg error",
+          });
         }
 
-        globalCounter++;
+        continue;
       }
+
+      globalCounter++;
+
+      mainWindow.webContents.send("processing-progress", {
+        current: globalCounter,
+        total: totalTasks,
+        percent: Math.round((globalCounter / totalTasks) * 100),
+      });
     }
   }
 

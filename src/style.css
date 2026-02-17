@@ -227,7 +227,28 @@ body {
 
 .configuration__row--item .help {
   color: #ff5b5b;
-  font-size: .85rem;
+  font-size: 0.85rem;
+}
+
+.error {
+  color: #ff5b5b;
+  background-color: #2b2a2a;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+  width: 90%;
+  margin: 2.5rem auto 0 auto;
+  padding: 1.25rem 1.5rem;
+  display: none;
+}
+
+.error h1 {
+  color: white !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.5px;
+  font-size: 1.35rem;
+  text-transform: capitalize;
+  margin-bottom: 0.75rem;
 }
 
 .actions {

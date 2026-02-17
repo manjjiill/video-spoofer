@@ -17,6 +17,8 @@ export function runFFmpeg({
   return new Promise((resolve, reject) => {
     fs.mkdirSync(path.dirname(output), { recursive: true });
 
+    let hasFinished = false;
+
     let outputOptions = [
       "-preset",
       // "slow",
@@ -84,31 +86,18 @@ export function runFFmpeg({
         // console.log(line);
       })
       .on("end", () => {
+        if (hasFinished) return;
+        hasFinished = true;
         resolve();
       })
       .on("error", (err, stdout, stderr) => {
+        if (hasFinished) return;
+        hasFinished = true;
+
         const errorMessage =
-          stderr && stderr.trim().length > 0
-            ? stderr
-            : err?.message || "Unknown FFmpeg error";
+          stderr?.trim() || err?.message || "Unknown FFmpeg error";
 
         reject(new Error(errorMessage));
-      })
-      .on("exit", (code, signal) => {
-        if (code !== 0) {
-          let message = "";
-
-          if (code === 137 || signal === "SIGKILL") {
-            message =
-              "FFmpeg was killed by the system (Possible memory limit).";
-          } else if (signal) {
-            message = `FFmpeg terminated by signal: ${signal}`;
-          } else {
-            message = `FFmpeg exited with code: ${code}`;
-          }
-
-          reject(new Error(message));
-        }
       })
       .run();
   });
