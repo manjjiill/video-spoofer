@@ -24,14 +24,7 @@ const getMaskPath = () => {
     ? path.join(process.resourcesPath, "assets", "border-radius.png")
     : path.join(app.getAppPath(), "src", "assets", "border-radius.png");
 
-  let normalized = path.resolve(fullPath).replace(/\\/g, "/");
-
-  if (process.platform === "win32") {
-    normalized = normalized.replace(/:/g, "\\:");
-    return `'${normalized}'`;
-  }
-
-  return normalized;
+  return path.resolve(fullPath);
 };
 
 const getRandomRotation = () => {
