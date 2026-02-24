@@ -34,6 +34,10 @@
       {
         "from": "src/luts",
         "to": "luts"
+      },
+      {
+        "from": "src/assets",
+        "to": "assets"
       }
     ]
   },

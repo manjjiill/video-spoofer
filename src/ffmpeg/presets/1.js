@@ -104,7 +104,7 @@ export const generatePresetsSet1 = (startId) => {
               filter: "blend",
               options: {
                 all_mode: "overlay",
-                all_opacity: 0.6,
+                all_opacity: 0.75,
               },
               inputs: ["original", "lut_applied"],
               outputs: "colored",
