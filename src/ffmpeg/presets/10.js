@@ -3,8 +3,8 @@ import path from "path";
 
 export const getLutPath = (fileName) => {
   const fullPath = app.isPackaged
-    ? path.join(process.resourcesPath, "luts", "rounded", fileName)
-    : path.join(app.getAppPath(), "src", "luts", "rounded", fileName);
+    ? path.join(process.resourcesPath, "luts", "mine", fileName)
+    : path.join(app.getAppPath(), "src", "luts", "mine", fileName);
 
   let normalized = path.resolve(fullPath).replace(/\\/g, "/");
 
@@ -12,7 +12,6 @@ export const getLutPath = (fileName) => {
     normalized = normalized.replace(/:/g, "\\:");
   }
 
-  // Required for lut3d inside filter_complex
   return `'${normalized}'`;
 };
 
@@ -49,7 +48,7 @@ const LUT_FILES = [
 
 const SHUFFLED_LUTS = [...LUT_FILES].sort(() => Math.random() - 0.5);
 
-export const generatePresetsSet4 = (startId) => {
+export const generatePresetsSet10 = (startId) => {
   return Array.from({ length: LUT_FILES.length }).map((_, i) => {
     const uniqueId = startId + i;
 

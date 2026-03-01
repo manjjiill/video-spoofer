@@ -29,10 +29,24 @@ export function buildFFmpegJob({ input, outputDir, preset }) {
     throw new Error(`Preset ${preset.id} missing mode`);
   }
 
+  let extraInputs = [];
+
+  if (built.maskPath) {
+    extraInputs.push(built.maskPath);
+  }
+
+  if (built.bgInput) {
+    extraInputs.push(built.bgInput);
+  }
+
+  if (built.extraInputs && Array.isArray(built.extraInputs)) {
+    extraInputs = [...extraInputs, ...built.extraInputs];
+  }
+
   return {
     input,
-    maskPath: built.maskPath,
     output,
+    extraInputs,
     args: built.args ?? [],
     filters: built.mode === "simple" ? built.filters : null,
     complexFilters: built.mode === "complex" ? built.complexFilters : null,

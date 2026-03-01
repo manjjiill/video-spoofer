@@ -6,6 +6,8 @@ import { generatePresetsSet5 } from "./5.js"; // done - 10
 import { generatePresetsSet6 } from "./6.js"; // done - 10
 import { generatePresetsSet7 } from "./7.js"; // done - 10
 import { generatePresetsSet8 } from "./8.js"; // done - 10
+import { generatePresetsSet9 } from "./9.js";
+import { generatePresetsSet10 } from "./10.js";
 
 let idCounter = 1;
 
@@ -24,4 +26,6 @@ export const PRESETS = [
   ...buildSet(generatePresetsSet6),
   ...buildSet(generatePresetsSet7),
   ...buildSet(generatePresetsSet8),
+  ...buildSet(generatePresetsSet9),
+  ...buildSet(generatePresetsSet10),
 ];

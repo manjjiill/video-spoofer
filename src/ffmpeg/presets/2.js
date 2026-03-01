@@ -1,7 +1,6 @@
 import { app } from "electron";
 import path from "path";
 
-/* ========================= LUT PATH ========================= */
 export const getLutPath = (fileName) => {
   const fullPath = app.isPackaged
     ? path.join(process.resourcesPath, "luts", "blur", fileName)
@@ -13,7 +12,6 @@ export const getLutPath = (fileName) => {
     normalized = normalized.replace(/:/g, "\\:");
   }
 
-  // Required for lut3d inside filter_complex
   return `'${normalized}'`;
 };
 
@@ -30,9 +28,6 @@ const LUT_FILES = [
   "10.cube",
   "11.cube",
   "12.cube",
-  "13.cube",
-  "14.cube",
-  "15.cube",
 ];
 
 const SHUFFLED_LUTS = [...LUT_FILES].sort(() => Math.random() - 0.5);
@@ -48,10 +43,11 @@ export const generatePresetsSet2 = (startId) => {
         const rawLutPath = getLutPath(lutName);
 
         const bgZoom = 1.225;
-        const cropAmount = 0.165; 
+        const cropAmount = 0.165;
 
         return {
           mode: "complex",
+
           complexFilters: [
             /* ========================= BACKGROUND ========================= */
             {
@@ -73,7 +69,7 @@ export const generatePresetsSet2 = (startId) => {
               outputs: "bg_blur",
             },
 
-            /* ========================= FOREGROUND (CROP TOP/BOTTOM) ========================= */
+            /* ========================= FOREGROUND ========================= */
             {
               filter: "crop",
               options: {
@@ -92,7 +88,7 @@ export const generatePresetsSet2 = (startId) => {
               outputs: "fg_scaled",
             },
 
-            /* ========================= MERGE FG ON BLURRED BG ========================= */
+            /* ========================= MERGE ========================= */
             {
               filter: "overlay",
               options: {
@@ -103,70 +99,54 @@ export const generatePresetsSet2 = (startId) => {
               outputs: "merged",
             },
 
-            /* ========================= SMART LUT ENGINE ========================= */
+            /* =====================================================
+               CINEMA SAFE COLOR ENGINE (FULL LUT)
+            ===================================================== */
 
-            // Gentle exposure lift
+            // 1️⃣ Gentle normalization
             {
               filter: "eq",
               options: {
-                brightness: 0.04,
-                contrast: 1.015,
+                brightness: 0.02,
+                contrast: 1.03,
                 saturation: 1.04,
               },
               inputs: "merged",
-              outputs: "base_pre",
+              outputs: "base_norm",
             },
 
-            // Protect shadows & highlights
+            // 2️⃣ Shadow protection
             {
               filter: "curves",
               options: {
-                r: "0/0 0.25/0.28 0.75/0.72 1/1",
-                g: "0/0 0.25/0.28 0.75/0.72 1/1",
-                b: "0/0 0.25/0.28 0.75/0.72 1/1",
+                r: "0/0.03 0.2/0.22 1/1",
+                g: "0/0.03 0.2/0.22 1/1",
+                b: "0/0.03 0.2/0.22 1/1",
               },
-              inputs: "base_pre",
+              inputs: "base_norm",
               outputs: "base_safe",
             },
 
-            // Split for blend LUT
-            {
-              filter: "split",
-              inputs: "base_safe",
-              outputs: ["base", "to_lut"],
-            },
-
-            // Apply LUT
+            // 3️⃣ Full LUT (100%)
             {
               filter: "lut3d",
               options: {
                 file: rawLutPath,
                 interp: "tetrahedral",
               },
-              inputs: "to_lut",
+              inputs: "base_safe",
               outputs: "lut_applied",
             },
 
-            // Controlled blend (safe for all clips)
+            // 4️⃣ Highlight protection
             {
-              filter: "blend",
+              filter: "curves",
               options: {
-                all_mode: "overlay",
-                all_opacity: 0.58,
+                r: "0/0 0.75/0.73 1/0.97",
+                g: "0/0 0.75/0.73 1/0.97",
+                b: "0/0 0.75/0.73 1/0.97",
               },
-              inputs: ["base", "lut_applied"],
-              outputs: "blended",
-            },
-
-            // Cinematic soften
-            {
-              filter: "eq",
-              options: {
-                contrast: 0.97,
-                saturation: 0.94,
-                gamma: 1.02,
-              },
-              inputs: "blended",
+              inputs: "lut_applied",
               outputs: "outv",
             },
           ],

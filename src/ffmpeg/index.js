@@ -6,8 +6,7 @@ let currentCommand = null;
 
 export function runFFmpeg({
   input,
-  maskPath,
-  bgInput,
+  extraInputs = [],
   output,
   filters,
   complexFilters,
@@ -40,17 +39,12 @@ export function runFFmpeg({
     const pitchFactor = 1.04; // 4% higher pitch
     const tempoCorrection = (1 / pitchFactor).toFixed(5);
 
-    // [0:v] is the main video
     let cmd = ffmpeg().input(input);
 
-    // [1:v] is the mask (if exists)
-    if (maskPath) {
-      cmd = cmd.input(maskPath);
-    }
-
-    // [2:v] is the background gradient
-    if (bgInput) {
-      cmd = cmd.input(bgInput);
+    if (Array.isArray(extraInputs)) {
+      extraInputs.forEach((file) => {
+        if (file) cmd = cmd.input(file);
+      });
     }
 
     cmd = cmd

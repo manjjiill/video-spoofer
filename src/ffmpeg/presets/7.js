@@ -1,9 +1,6 @@
 import { app } from "electron";
 import path from "path";
 
-/* =========================
-   LUT PATH (Filter Safe)
-========================= */
 export const getLutPath = (fileName) => {
   const fullPath = app.isPackaged
     ? path.join(process.resourcesPath, "luts", "bw", fileName)
@@ -15,13 +12,9 @@ export const getLutPath = (fileName) => {
     normalized = normalized.replace(/:/g, "\\:");
   }
 
-  // Required for lut3d inside filter_complex
   return `'${normalized}'`;
 };
 
-/* =========================
-   GRADIENT PATH
-========================= */
 const getGradientPath = () => {
   const fullPath = app.isPackaged
     ? path.join(process.resourcesPath, "assets", "gradient-3.png")
@@ -74,28 +67,25 @@ export const generatePresetsSet7 = (startId) => {
           maskPath: gradientPath,
 
           complexFilters: [
-            /* ========================= SMART NORMALIZATION ========================= */
-
             {
               filter: "eq",
               options: {
-                brightness: 0.045,
-                contrast: 1.015,
-                saturation: 1.05,
+                brightness: 0.02,
+                contrast: 1.03,
+                saturation: 1.04,
               },
               inputs: "0:v",
-              outputs: "base_pre",
+              outputs: "base_norm",
             },
 
-            // Gentle shadow protection curve
             {
               filter: "curves",
               options: {
-                r: "0/0 0.25/0.28 1/1",
-                g: "0/0 0.25/0.28 1/1",
-                b: "0/0 0.25/0.28 1/1",
+                r: "0/0.03 0.2/0.22 1/1",
+                g: "0/0.03 0.2/0.22 1/1",
+                b: "0/0.03 0.2/0.22 1/1",
               },
-              inputs: "base_pre",
+              inputs: "base_norm",
               outputs: "base_safe",
             },
 
@@ -107,49 +97,30 @@ export const generatePresetsSet7 = (startId) => {
             },
 
             {
-              filter: "split",
-              inputs: "fg_scaled",
-              outputs: ["fg_original", "fg_lut_input"],
-            },
-
-            /* ========================= CONTROLLED LUT ========================= */
-            {
               filter: "lut3d",
               options: {
                 file: lutPath,
                 interp: "tetrahedral",
               },
-              inputs: "fg_lut_input",
+              inputs: "fg_scaled",
               outputs: "fg_lut",
             },
 
-            // Balanced intensity (safe for all clips)
             {
-              filter: "blend",
+              filter: "curves",
               options: {
-                all_mode: "overlay",
-                all_opacity: 0.65,
+                r: "0/0 0.75/0.73 1/0.97",
+                g: "0/0 0.75/0.73 1/0.97",
+                b: "0/0 0.75/0.73 1/0.97",
               },
-              inputs: ["fg_original", "fg_lut"],
-              outputs: "fg_color",
+              inputs: "fg_lut",
+              outputs: "fg_protected",
             },
 
-            // Slight soften after LUT
-            {
-              filter: "eq",
-              options: {
-                contrast: 0.98,
-                saturation: 0.97,
-              },
-              inputs: "fg_color",
-              outputs: "fg_final",
-            },
-
-            /* ========================= ROTATION ========================= */
             {
               filter: "format",
               options: { pix_fmts: "rgba" },
-              inputs: "fg_final",
+              inputs: "fg_protected",
               outputs: "fg_rgba",
             },
 
@@ -164,8 +135,6 @@ export const generatePresetsSet7 = (startId) => {
               inputs: "fg_rgba",
               outputs: "fg_rotated",
             },
-
-            /* ========================= BACKGROUND ========================= */
 
             {
               filter: "scale",

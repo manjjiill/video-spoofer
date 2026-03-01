@@ -1,9 +1,6 @@
 import { app } from "electron";
 import path from "path";
 
-/* =========================
-   LUT PATH
-========================= */
 export const getLutPath = (fileName) => {
   const fullPath = app.isPackaged
     ? path.join(process.resourcesPath, "luts", "crop", fileName)
@@ -15,7 +12,6 @@ export const getLutPath = (fileName) => {
     normalized = normalized.replace(/:/g, "\\:");
   }
 
-  // Required for lut3d inside filter_complex
   return `'${normalized}'`;
 };
 
@@ -30,11 +26,6 @@ const LUT_FILES = [
   "8.cube",
   "9.cube",
   "10.cube",
-  "11.cube",
-  "12.cube",
-  "13.cube",
-  "14.cube",
-  "15.cube",
 ];
 
 const SHUFFLED_LUTS = [...LUT_FILES].sort(() => Math.random() - 0.5);
@@ -49,19 +40,15 @@ export const generatePresetsSet3 = (startId) => {
         const lutName = SHUFFLED_LUTS[i % SHUFFLED_LUTS.length];
         const rawLutPath = getLutPath(lutName);
 
-        // 🎯 Random rotation 2°–5° (positive or negative)
         const rotationDeg = Math.random() * 3 + 2; // 2 → 5
         const rotationSign = Math.random() < 0.5 ? -1 : 1;
         const randomAngle = (rotationDeg * rotationSign * Math.PI) / 180;
 
-        // 🎯 Random crop 14%–20%
         const cropPercent = Math.random() * (0.2 - 0.14) + 0.14;
 
         return {
           mode: "complex",
           complexFilters: [
-            /* ================= SCALE TO FILL VERTICAL ================= */
-
             {
               filter: "scale",
               options: {
@@ -72,8 +59,6 @@ export const generatePresetsSet3 = (startId) => {
               inputs: "0:v",
               outputs: "scaled",
             },
-
-            /* ================= RANDOM TOP/BOTTOM CROP ================= */
 
             {
               filter: "crop",
@@ -86,8 +71,6 @@ export const generatePresetsSet3 = (startId) => {
               inputs: "scaled",
               outputs: "cropped",
             },
-
-            /* ================= PAD BACK TO 1080x1920 ================= */
 
             {
               filter: "pad",
@@ -102,8 +85,6 @@ export const generatePresetsSet3 = (startId) => {
               outputs: "padded",
             },
 
-            /* ================= RANDOM ROTATION ================= */
-
             {
               filter: "rotate",
               options: {
@@ -115,8 +96,6 @@ export const generatePresetsSet3 = (startId) => {
               inputs: "padded",
               outputs: "rotated",
             },
-
-            /* ================= SLIGHT ZOOM TO HIDE CORNERS ================= */
 
             {
               filter: "scale",
@@ -140,70 +119,46 @@ export const generatePresetsSet3 = (startId) => {
               outputs: "final_base",
             },
 
-            /* ================= SMART LUT ENGINE ================= */
-
-            // Gentle exposure lift
             {
               filter: "eq",
               options: {
-                brightness: 0.045,
-                contrast: 1.015,
+                brightness: 0.02,
+                contrast: 1.03,
                 saturation: 1.04,
               },
               inputs: "final_base",
-              outputs: "base_pre",
+              outputs: "base_norm",
             },
 
-            // Shadow + highlight protection
             {
               filter: "curves",
               options: {
-                r: "0/0 0.25/0.28 0.75/0.72 1/1",
-                g: "0/0 0.25/0.28 0.75/0.72 1/1",
-                b: "0/0 0.25/0.28 0.75/0.72 1/1",
+                r: "0/0.03 0.2/0.22 1/1",
+                g: "0/0.03 0.2/0.22 1/1",
+                b: "0/0.03 0.2/0.22 1/1",
               },
-              inputs: "base_pre",
+              inputs: "base_norm",
               outputs: "base_safe",
             },
 
-            // Split
-            {
-              filter: "split",
-              inputs: "base_safe",
-              outputs: ["base", "to_lut"],
-            },
-
-            // Apply LUT
             {
               filter: "lut3d",
               options: {
                 file: rawLutPath,
                 interp: "tetrahedral",
               },
-              inputs: "to_lut",
+              inputs: "base_safe",
               outputs: "lut_applied",
             },
 
-            // Controlled blend (safe for all clips)
             {
-              filter: "blend",
+              filter: "curves",
               options: {
-                all_mode: "overlay",
-                all_opacity: 0.58,
+                r: "0/0 0.75/0.73 1/0.97",
+                g: "0/0 0.75/0.73 1/0.97",
+                b: "0/0 0.75/0.73 1/0.97",
               },
-              inputs: ["base", "lut_applied"],
-              outputs: "blended",
-            },
-
-            // Cinematic finish
-            {
-              filter: "eq",
-              options: {
-                contrast: 0.97,
-                saturation: 0.94,
-                gamma: 1.02,
-              },
-              inputs: "blended",
+              inputs: "lut_applied",
               outputs: "outv",
             },
           ],

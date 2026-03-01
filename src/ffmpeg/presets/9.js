@@ -3,8 +3,8 @@ import path from "path";
 
 export const getLutPath = (fileName) => {
   const fullPath = app.isPackaged
-    ? path.join(process.resourcesPath, "luts", "rounded", fileName)
-    : path.join(app.getAppPath(), "src", "luts", "rounded", fileName);
+    ? path.join(process.resourcesPath, "luts", "bw", fileName)
+    : path.join(app.getAppPath(), "src", "luts", "bw", fileName);
 
   let normalized = path.resolve(fullPath).replace(/\\/g, "/");
 
@@ -12,14 +12,21 @@ export const getLutPath = (fileName) => {
     normalized = normalized.replace(/:/g, "\\:");
   }
 
-  // Required for lut3d inside filter_complex
   return `'${normalized}'`;
 };
 
 const getMaskPath = () => {
   const fullPath = app.isPackaged
-    ? path.join(process.resourcesPath, "assets", "border-radius.png")
-    : path.join(app.getAppPath(), "src", "assets", "border-radius.png");
+    ? path.join(process.resourcesPath, "assets", "frame.png")
+    : path.join(app.getAppPath(), "src", "assets", "frame.png");
+
+  return path.resolve(fullPath);
+};
+
+const getGradientPath = () => {
+  const fullPath = app.isPackaged
+    ? path.join(process.resourcesPath, "assets", "gradient-5.png")
+    : path.join(app.getAppPath(), "src", "assets", "gradient-5.png");
 
   return path.resolve(fullPath);
 };
@@ -27,15 +34,12 @@ const getMaskPath = () => {
 const getRandomRotation = () => {
   const min = 3;
   const max = 8;
-
   const deg = Math.random() * (max - min) + min;
   const sign = Math.random() < 0.5 ? -1 : 1;
-
   return (deg * sign * Math.PI) / 180;
 };
 
 const LUT_FILES = [
-  "1.cube",
   "2.cube",
   "3.cube",
   "4.cube",
@@ -49,27 +53,30 @@ const LUT_FILES = [
 
 const SHUFFLED_LUTS = [...LUT_FILES].sort(() => Math.random() - 0.5);
 
-export const generatePresetsSet4 = (startId) => {
+export const generatePresetsSet9 = (startId) => {
   return Array.from({ length: LUT_FILES.length }).map((_, i) => {
     const uniqueId = startId + i;
-
     const randomAngle = getRandomRotation();
 
     return {
       id: uniqueId,
+
       build: () => {
         const lutName = SHUFFLED_LUTS[i % SHUFFLED_LUTS.length];
-        const rawLutPath = getLutPath(lutName);
+        const lutPath = getLutPath(lutName);
         const maskPath = getMaskPath();
+        const gradientPath = getGradientPath();
 
         return {
           mode: "complex",
-          maskPath: maskPath,
+
+          // 👇 VERY IMPORTANT: This tells your ffmpeg runner
+          // to add these as additional -i inputs
+          extraInputs: [maskPath, gradientPath],
 
           complexFilters: [
-            /* =========================
-               1️⃣ NORMALIZE
-            ========================== */
+            /* ================= COLOR ENGINE ================= */
+
             {
               filter: "eq",
               options: {
@@ -81,9 +88,6 @@ export const generatePresetsSet4 = (startId) => {
               outputs: "base_norm",
             },
 
-            /* =========================
-               2️⃣ SHADOW PROTECTION
-            ========================== */
             {
               filter: "curves",
               options: {
@@ -97,27 +101,21 @@ export const generatePresetsSet4 = (startId) => {
 
             {
               filter: "scale",
-              options: { w: 1000, h: 1850 },
+              options: { w: 1010, h: 1870 },
               inputs: "base_safe",
               outputs: "fg_scaled",
             },
 
-            /* =========================
-               3️⃣ FULL LUT (100%)
-            ========================== */
             {
               filter: "lut3d",
               options: {
-                file: rawLutPath,
+                file: lutPath,
                 interp: "tetrahedral",
               },
               inputs: "fg_scaled",
               outputs: "fg_lut",
             },
 
-            /* =========================
-               4️⃣ HIGHLIGHT PROTECTION
-            ========================== */
             {
               filter: "curves",
               options: {
@@ -129,9 +127,8 @@ export const generatePresetsSet4 = (startId) => {
               outputs: "fg_protected",
             },
 
-            /* =========================
-               5️⃣ CONVERT TO RGBA
-            ========================== */
+            /* ================= APPLY MASK ================= */
+
             {
               filter: "format",
               options: { pix_fmts: "rgba" },
@@ -139,28 +136,21 @@ export const generatePresetsSet4 = (startId) => {
               outputs: "fg_rgba",
             },
 
-            /* =========================
-               6️⃣ SCALE MASK
-            ========================== */
             {
               filter: "scale",
-              options: { w: 1000, h: 1850 },
-              inputs: "1:v",
+              options: { w: 1010, h: 1870 },
+              inputs: "1:v", // mask
               outputs: "mask_scaled",
             },
 
-            /* =========================
-               7️⃣ APPLY ROUND MASK
-            ========================== */
             {
               filter: "alphamerge",
               inputs: ["fg_rgba", "mask_scaled"],
-              outputs: "fg_rounded",
+              outputs: "fg_masked",
             },
 
-            /* =========================
-               8️⃣ ROTATE
-            ========================== */
+            /* ================= ROTATE ================= */
+
             {
               filter: "rotate",
               options: {
@@ -169,17 +159,17 @@ export const generatePresetsSet4 = (startId) => {
                 ow: "rotw(iw)",
                 oh: "roth(ih)",
               },
-              inputs: "fg_rounded",
+              inputs: "fg_masked",
               outputs: "fg_rotated",
             },
 
-            /* =========================
-               9️⃣ BACKGROUND
-            ========================== */
+            /* ================= GRADIENT BACKGROUND ================= */
+
             {
-              filter: "color",
-              options: { color: "black", size: "1080x1920" },
-              outputs: "bg",
+              filter: "scale",
+              options: { w: 1080, h: 1920 },
+              inputs: "2:v", // gradient
+              outputs: "bg_scaled",
             },
 
             {
@@ -187,9 +177,8 @@ export const generatePresetsSet4 = (startId) => {
               options: {
                 x: "(W-w)/2",
                 y: "(H-h)/2",
-                shortest: 1,
               },
-              inputs: ["bg", "fg_rotated"],
+              inputs: ["bg_scaled", "fg_rotated"],
               outputs: "outv",
             },
           ],
