@@ -18,14 +18,14 @@ const buildSet = (generator) => {
 };
 
 export const PRESETS = [
-  ...buildSet(generatePresetsSet1),
-  ...buildSet(generatePresetsSet2),
-  ...buildSet(generatePresetsSet3),
-  ...buildSet(generatePresetsSet4),
-  ...buildSet(generatePresetsSet5),
-  ...buildSet(generatePresetsSet6),
-  ...buildSet(generatePresetsSet7),
-  ...buildSet(generatePresetsSet8),
-  ...buildSet(generatePresetsSet9),
+  // ...buildSet(generatePresetsSet1),
+  // ...buildSet(generatePresetsSet2),
+  // ...buildSet(generatePresetsSet3),
+  // ...buildSet(generatePresetsSet4),
+  // ...buildSet(generatePresetsSet5),
+  // ...buildSet(generatePresetsSet6),
+  // ...buildSet(generatePresetsSet7),
+  // ...buildSet(generatePresetsSet8),
+  // ...buildSet(generatePresetsSet9),
   ...buildSet(generatePresetsSet10),
 ];
