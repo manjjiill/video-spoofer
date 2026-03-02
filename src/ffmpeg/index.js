@@ -43,7 +43,9 @@ export function runFFmpeg({
 
     if (Array.isArray(extraInputs)) {
       extraInputs.forEach((file) => {
-        if (file) cmd = cmd.input(file);
+        if (file) {
+          cmd = cmd.input(file).inputOptions(["-loop 1"]);
+        }
       });
     }
 
